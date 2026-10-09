@@ -123,6 +123,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* iOS Safari: lets Base UI backdrops cover the full page */
+    position: relative;
+  }
+  /* Base UI portals render above this stacking context */
+  .root {
+    isolation: isolate;
   }
   html {
     @apply font-sans;
