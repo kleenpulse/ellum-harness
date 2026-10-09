@@ -31,17 +31,13 @@ Before the final response, run one reporting pass. If candidates remain, from th
 
 ## Database schema changes
 
-Drizzle schema lives in `lib/db/schema.ts`. Apply changes with `bun run db:push` (`drizzle-kit push`) only. Never use migrations: no `drizzle-kit generate`, `drizzle-kit migrate`, migration SQL files, or a `drizzle/` migrations folder.
+Schema: `lib/db/schema.ts`. Apply only with `bun run db:push` (`drizzle-kit push`). No migrations: no `drizzle-kit generate`/`migrate`, migration SQL, or `drizzle/` folder.
 
-This is a development project. There's no backwards compatibility and the data is worthless. Prefer data loss: never backfill, migrate, or preserve existing rows, and never spend effort on keeping old data working. Every schema change means a clean slate.
+Dev project, data is worthless, no backwards compatibility. Every schema change is a clean slate: never backfill, migrate or preserve rows.
 
 ## DiceBear
 
-Use DiceBear 10. Documentation: https://www.dicebear.com/llms.txt
-
-There are seven native cores with identical output, not one library with
-wrappers. Use the one matching this project's language. Do not reach for the
-JavaScript core when the project is written in something else:
+Use DiceBear 10 (docs: https://www.dicebear.com/llms.txt). Seven native cores with identical output, not wrappers; use the one for the project's language:
 
     JavaScript  @dicebear/core + @dicebear/styles
     PHP         dicebear/core + dicebear/styles
@@ -51,20 +47,12 @@ JavaScript core when the project is written in something else:
     Dart        dicebear_core + dicebear_styles
     C#          DiceBear.Core + DiceBear.Styles
 
-Every style page carries a loading snippet for all seven, for example
-https://www.dicebear.com/styles/lorelei/index.md
+Each style page has loading snippets for all seven, e.g. https://www.dicebear.com/styles/lorelei/index.md
 
-HTTP API: https://api.dicebear.com/10.x/<style>/svg?seed=<seed> The seed is a
-query parameter, not a path segment. Options are query parameters too; array
-values are separated by commas.
+- HTTP API: https://api.dicebear.com/10.x/<style>/svg?seed=<seed>. Seed and options are query params (not path segments); array values comma-separated.
+- Component options end in `Variant` (`eyesVariant`, not `eyes`), in all cores and the API. Options per style: https://api.dicebear.com/10.x/<style>/options.json
 
-Options named after a component end in Variant: eyesVariant, not eyes. This
-holds in all seven cores and in the HTTP API. Look up the options of a style at
-https://api.dicebear.com/10.x/<style>/options.json
-
-Write these forms, not the ones on the left. The left column is pre-10 and the
-API does not reject it, so an outdated call runs and silently does the wrong
-thing:
+Pre-10 forms (left) are still accepted and silently do the wrong thing. Write the right side:
 
     avatars.dicebear.com/api/<style>/<seed>.svg  ->  api.dicebear.com/10.x/<style>/svg?seed=<seed>
     api.dicebear.com/9.x/<style>/svg             ->  api.dicebear.com/10.x/<style>/svg
@@ -74,10 +62,54 @@ thing:
     { eyes: ['variant01'] }                      ->  { eyesVariant: ['variant01'] }
     ?radius=50                                   ->  ?borderRadius=50
 
-Only JavaScript and the HTTP API have a pre-10 form. The other six cores were
-released in 2026 and never had one, so any older-looking PHP, Python, Rust, Go,
-Dart or C# API attributed to DiceBear is invented rather than outdated.
+Only JS and the HTTP API have pre-10 forms. The other six cores shipped in 2026; any older-looking PHP/Python/Rust/Go/Dart/C# DiceBear API is invented.
+
+## Forms
+
+Every DB-writing form copies the bot form: `lib/db/validation.ts` → `actions/bot.ts` → `components/bot-dialog.tsx`.
+
+**Schema (shared by client and server).**
+
+- Derive from the Drizzle table with `drizzle-zod` `createInsertSchema` in `lib/db/validation.ts` (`schema.ts` stays table definitions only). Never hand-write a parallel zod object.
+- Limits and messages go in refinement callbacks (`name: (s) => s.trim().min(1, "Give it a name.").max(40, …)`). Messages are plain sentences saying what to do.
+- `.pick()` only user-filled fields: no ids, `userId`, timestamps or server-managed columns.
+- Export limits the UI shows as constants (`INSTRUCTIONS_MAX`) used by both schema and component.
+
+**Server actions**: `actions/<entity>.ts`, `"use server"`.
+
+- User from Clerk `auth()`. Never accept `userId` or any ownership field from the client.
+- Re-validate with the same schema (`safeParse`); client validation is not a guard.
+- Return, don't throw: `{ ok: true, … } | { ok: false, error, fieldErrors? }`, `fieldErrors` from `z.flattenError(...)`.
+- Empty optional text → `null`, not `""`.
+- After writing, `refresh()` from `next/cache` (`updateTag` / `revalidatePath` once data is cached). Read `node_modules/next/dist/docs/01-app/01-getting-started/07-mutating-data.md` first.
+
+**Client form.**
+
+- `react-hook-form` + `zodResolver(schema)`, typed `z.input<typeof schema>`.
+- Every control: `<Controller>` in shadcn `FieldGroup` → `Field` → `FieldLabel` + control + `FieldError`; `data-invalid` on `Field`, `aria-invalid` on control. No raw `div`/`label` layouts, no `space-y-*`.
+- `useWatch`, not `form.watch()` (React Compiler lint rejects it).
+- Submit in `useTransition`. While pending: disable controls, `Spinner` with `data-icon="inline-start"` in submit (`Button` has no loading prop).
+- `{ ok: false }` → `form.setError` per `fieldErrors` + `toast.add({ type: "error", … })` from `@/components/ui/toast` (Base UI, not sonner). Success → toast, close, `form.reset()`. Reset only on success so an accidental close keeps the draft.
+- Presets / template chips: `Button size="pill-sm" variant="surface"` calling `form.reset({...}, { keepDefaultValues: true })`.
+
+**Controls.**
+
+- Long user-written text uses `CountedTextarea` (`components/ui/counted-textarea.tsx`), never stock `Textarea` (grows without limit). No resize handle, capped height with inner scroll, `count / max` in an `InputGroup` footer. Props: `max`, `enforce` (default `true`, hard stop), `warnAt` (default `0.9`), `className` (textarea, e.g. taller `max-h-*`), `wrapperClassName` (box).
+- Control wrappers must merge refs: `{...field}` passes RHF's `ref` and a later spread overwrites yours.
+- Buttons are pills (`pill`, `pill-sm`) per `DESIGN.md`. Submit: default variant; Cancel: `surface`.
+
+**Dialogs.**
+
+- Create/edit forms open in `GrowDialog` (`components/ui/grow-dialog.tsx`, from Shadow Garden's registry, restyled). The form component owns a trigger button taking `Button` props and grows from its `getBoundingClientRect()`. Every button for that action uses this component.
+- Always mounted (`open={open}`, never `{open && …}`) or the shrink-back exit can't play. Block `onOpenChange(false)` while submitting.
+- Panel: `dialog-surface` + `shadow-lift` (opaque gradient, not flat `bg-popover`). Footer: right-aligned buttons only, no `border-t`, no `bg-muted` band.
+- Body scrolls (`overflow-y-auto`) within `max-h-[85svh]`; footer fixed.
+
+**Verify in the browser.**
+
+- Submit signed in via `@clerk/testing` (like `scripts/dev-shot.ts`). Check empty-submit errors, filled submit, toast and inserted row, light and dark.
+- After editing `app/globals.css`, confirm the served CSS has the change before judging a screenshot; if not, restart `next dev` (see `DESIGN.md`).
 
 ## Design system
 
-Read `DESIGN.md` before touching UI: semantic tokens only (no raw hex / zinc), pills and circles, two shadows, `PageFrame` → bento → well, container queries inside the sheet. To see a protected page, run `bun run shot . bots` (routes without leading slash) (real Clerk dev session via `@clerk/testing`; never bypass `auth.protect()`).
+Read `DESIGN.md` before touching UI: semantic tokens only (no raw hex / zinc), pills and circles, two shadows, `PageFrame` → bento → well, container queries inside the sheet. Protected page screenshot: `bun run shot . bots` (routes without leading slash; real Clerk dev session via `@clerk/testing`, never bypass `auth.protect()`).

@@ -117,6 +117,7 @@ A new page is a server component that renders `<PageFrame>` with bento cards ins
 
 - `bento`: a card surface.
 - `well`: a nested panel surface.
+- `dialog-surface`: an opaque dialog panel lit like the canvas (signal bloom top right, navy pool bottom left in Night; a faint signal tint in Paper). Pair with `shadow-lift`. Dialog footers have no hairline or tinted band.
 - `glass`: frosted overlays only.
 - `readout`: the mono label style.
 - `tabular`: tabular figures.

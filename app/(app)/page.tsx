@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { BotDialog } from "@/components/bot-dialog";
 import { BotsEmpty } from "@/components/bots/bots-empty";
 import {
   Bento,
@@ -10,7 +11,6 @@ import {
   StatTile,
   Well,
 } from "@/components/ui/bento";
-import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
 import { PageFrame } from "@/components/shell/page-frame";
 
@@ -28,10 +28,10 @@ export default function OverviewPage() {
       title="Overview"
       subtitle="Your bots and their sandboxes · last 7 days"
       actions={
-        <Button size="pill">
+        <BotDialog size="pill">
           <Plus data-icon="inline-start" />
           New bot
-        </Button>
+        </BotDialog>
       }
       intro={
         <StatStrip>

@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { AvatarStage } from "@/components/avatar-stage";
 import { gazeSvg } from "@/components/chat-avatar";
-import { Button } from "@/components/ui/button";
+import { BotDialog } from "@/components/bot-dialog";
 import { PaneState } from "@/components/ui/pane-state";
 import { getAvatarSeed } from "@/lib/avatar";
 
@@ -14,10 +14,10 @@ export async function BotsEmpty({ cta = true }: { cta?: boolean }) {
       title="No bots yet"
       action={
         cta ? (
-          <Button size="pill-sm" variant="surface">
+          <BotDialog size="pill-sm" variant="surface">
             Create your first bot
             <ArrowRight data-icon="inline-end" />
-          </Button>
+          </BotDialog>
         ) : undefined
       }
     >

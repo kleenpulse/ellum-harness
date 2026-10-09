@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
+import { BotDialog } from "@/components/bot-dialog";
 import { Bento } from "@/components/ui/bento";
-import { Button } from "@/components/ui/button";
 import { BotsEmpty } from "@/components/bots/bots-empty";
 import { PageFrame } from "@/components/shell/page-frame";
 
@@ -10,10 +10,10 @@ export default function BotsPage() {
       title="Bots"
       subtitle="Each bot gets its own sandbox the first time it runs"
       actions={
-        <Button size="pill">
+        <BotDialog size="pill">
           <Plus data-icon="inline-start" />
           New bot
-        </Button>
+        </BotDialog>
       }
     >
       <Bento>

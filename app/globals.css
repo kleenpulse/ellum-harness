@@ -415,6 +415,22 @@
 	}
 }
 
+/* Dialog panel: opaque (it floats over content), lit like the canvas — a
+   signal bloom top right, a navy pool bottom left, the bento sheen. */
+@utility dialog-surface {
+	background-color: var(--popover);
+	color: var(--popover-foreground);
+	background-image:
+		radial-gradient(120% 70% at 100% -10%, rgb(37 99 235 / 0.06), transparent 60%),
+		linear-gradient(180deg, transparent 60%, rgb(17 20 24 / 0.02));
+	.dark & {
+		background-image:
+			radial-gradient(120% 75% at 95% -15%, rgb(37 99 235 / 0.2), transparent 62%),
+			radial-gradient(100% 70% at -10% 115%, rgb(21 48 106 / 0.45), transparent 60%),
+			linear-gradient(160deg, rgb(214 228 255 / 0.05), transparent 42%);
+	}
+}
+
 /* A panel recessed into a bento. */
 @utility well {
 	border-radius: var(--radius-well);
