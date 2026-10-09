@@ -1,5 +1,9 @@
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { AuthControls } from "@/components/auth/auth-controls";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,18 +33,26 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <TooltipProvider>
-            <Toaster>
-              <div className="root flex flex-1 flex-col">{children}</div>
-            </Toaster>
-          </TooltipProvider>
-        </ThemeProvider>
+        <ClerkProvider appearance={{ theme: shadcn }}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <TooltipProvider>
+              <Toaster>
+                <header className="flex h-14 items-center justify-end gap-2 border-b px-4">
+                  {/* auth state is request-time data; Suspense keeps the shell prerenderable */}
+                  <Suspense>
+                    <AuthControls />
+                  </Suspense>
+                </header>
+                <div className="root flex flex-1 flex-col">{children}</div>
+              </Toaster>
+            </TooltipProvider>
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
