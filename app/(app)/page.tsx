@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { BotDialog } from "@/components/bot-dialog";
+import { BotList } from "@/components/bots/bot-list";
 import { BotsEmpty } from "@/components/bots/bots-empty";
 import {
   Bento,
@@ -13,8 +14,9 @@ import {
 } from "@/components/ui/bento";
 import { StatusPill } from "@/components/ui/status-pill";
 import { PageFrame } from "@/components/shell/page-frame";
+import { getBots } from "@/queries/bots";
 
-// Placeholder figures until bots are wired to the database.
+// Placeholder figures until sandboxes are wired up.
 const SANDBOXES = [
   { name: "Inbox triage", tone: "running", label: "Running" },
   { name: "Release notes", tone: "ok", label: "Ready" },
@@ -22,7 +24,10 @@ const SANDBOXES = [
   { name: "Weekly digest", tone: "attention", label: "Needs you" },
 ] as const;
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  const bots = await getBots();
+  const live = bots.filter((b) => b.hasSandbox).length;
+
   return (
     <PageFrame
       title="Overview"
@@ -35,11 +40,16 @@ export default function OverviewPage() {
       }
       intro={
         <StatStrip>
-          <StatTile i={0} label="Bots" value="0" sub="None created yet" />
+          <StatTile
+            i={0}
+            label="Bots"
+            value={bots.length}
+            sub={bots.length ? `${bots.length} created` : "None created yet"}
+          />
           <StatTile
             i={1}
             label="Sandboxes live"
-            value="0"
+            value={live}
             dot="signal"
             sub="Started on first use"
           />
@@ -65,7 +75,13 @@ export default function OverviewPage() {
             <BentoTitle>Bots</BentoTitle>
             <Chip>all time</Chip>
           </div>
-          <BotsEmpty />
+          {bots.length ? (
+            <div className="mt-4">
+              <BotList bots={bots} />
+            </div>
+          ) : (
+            <BotsEmpty />
+          )}
         </Bento>
 
         <div className="col-span-12 grid gap-4 @3xl:grid-cols-2 @board:col-span-4 @board:grid-cols-1">
