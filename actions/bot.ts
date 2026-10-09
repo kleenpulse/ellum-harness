@@ -2,13 +2,14 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { refresh } from "next/cache";
+import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { bots } from "@/lib/db/schema";
+import { bots, chatMembers, chats } from "@/lib/db/schema";
 import { createBotSchema, type CreateBotInput } from "@/lib/db/validation";
 
 export type CreateBotResult =
-  | { ok: true; id: string; name: string }
+  | { ok: true; id: string; name: string; chatId: string }
   | {
       ok: false;
       error: string;
@@ -29,12 +30,20 @@ export async function createBot(input: CreateBotInput): Promise<CreateBotResult>
   }
 
   const { instructions, ...rest } = parsed.data;
-  const [bot] = await db
-    .insert(bots)
-    // userId comes from the session, never from the client.
-    .values({ ...rest, instructions: instructions || null, userId })
-    .returning({ id: bots.id, name: bots.name });
+  // Ids are minted here so the member row can point at both parents within
+  // one batch; neon-http runs a batch as a single transaction.
+  const botId = nanoid();
+  const chatId = nanoid();
+  const [[bot]] = await db.batch([
+    db
+      .insert(bots)
+      // userId comes from the session, never from the client.
+      .values({ ...rest, id: botId, instructions: instructions || null, userId })
+      .returning({ id: bots.id, name: bots.name }),
+    db.insert(chats).values({ id: chatId, userId, kind: "direct" }),
+    db.insert(chatMembers).values({ chatId, botId }),
+  ]);
 
   refresh();
-  return { ok: true, ...bot };
+  return { ok: true, ...bot, chatId };
 }
