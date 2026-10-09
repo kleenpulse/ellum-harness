@@ -17,6 +17,10 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        inverse: "bg-inverse text-inverse-foreground hover:bg-inverse/88",
+        surface:
+          "border-border bg-sheet text-foreground hover:bg-card dark:border-glass-border dark:bg-card-nested dark:hover:bg-accent",
+        glass: "glass text-foreground hover:bg-accent",
       },
       size: {
         default:
@@ -30,6 +34,12 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        pill: "h-10 gap-2 rounded-pill px-5 text-sm active:not-aria-[haspopup]:scale-[0.98] has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
+        "pill-sm":
+          "h-8 gap-1.5 rounded-pill px-3.5 text-[13px] active:not-aria-[haspopup]:scale-[0.98]",
+        circle:
+          "size-11 rounded-full active:not-aria-[haspopup]:scale-95 [&_svg:not([class*='size-'])]:size-[18px]",
+        "circle-sm": "size-9 rounded-full active:not-aria-[haspopup]:scale-95",
       },
     },
     defaultVariants: {

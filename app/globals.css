@@ -3,135 +3,494 @@
 @import "shadcn/tailwind.css";
 @import "@clerk/ui/themes/shadcn.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Ellum — one token vocabulary, two skins. See DESIGN.md.
+ *   Paper (:root) — white sheet on a cool paper canvas, one cobalt signal.
+ *   Night (.dark) — navy-black lit by blue glows, the same signal brighter.
+ * Layout, anatomy and motion mirror Raven (email-manager) and Shadow Garden
+ * admin: icon rail, header on the canvas, rounded sheet of bento cards → wells.
+ * Components reference tokens only; never raw hex, never zinc/slate.
+ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+	--font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+	--font-display:
+		var(--font-instrument-sans), var(--font-geist-sans), ui-sans-serif,
+		sans-serif;
+	--font-heading: var(--font-display);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar: var(--sidebar);
+	--color-chart-5: var(--chart-5);
+	--color-chart-4: var(--chart-4);
+	--color-chart-3: var(--chart-3);
+	--color-chart-2: var(--chart-2);
+	--color-chart-1: var(--chart-1);
+	--color-ring: var(--ring);
+	--color-input: var(--input);
+	--color-border: var(--border);
+	--color-destructive: var(--destructive);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-accent: var(--accent);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-muted: var(--muted);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-secondary: var(--secondary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-primary: var(--primary);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-popover: var(--popover);
+	--color-card-foreground: var(--card-foreground);
+	--color-card: var(--card);
+
+	/* Skin surfaces: canvas (band) → sheet → card (bento) → card-nested (well). */
+	--color-band: var(--band);
+	--color-sheet: var(--sheet);
+	--color-card-nested: var(--card-nested);
+	--color-ink: var(--foreground);
+	--color-ink-2: var(--ink-2);
+	--color-ink-3: var(--ink-3);
+	/* The one signal: active, unread, primary, the headline mark. */
+	--color-signal: var(--signal);
+	--color-signal-ink: var(--signal-ink);
+	--color-signal-soft: var(--signal-soft);
+	--color-inverse: var(--inverse);
+	--color-inverse-foreground: var(--inverse-foreground);
+	--color-glass: var(--glass);
+	--color-glass-border: var(--glass-border);
+	--color-critical: var(--critical);
+	--color-warn: var(--warn);
+	--color-ok: var(--ok);
+	--color-scroll: var(--scroll);
+
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
+
+	/* Two shadows, and only two: glow (a halo) and lift (things that float).
+	   `card` is the bento's own resting drop — none in Paper. */
+	--shadow-card: var(--shadow-card-value);
+	--shadow-lift: var(--shadow-lift-value);
+	--shadow-glow: var(--shadow-glow-value);
 }
 
+@theme {
+	/* Graphite ramp — the raw palette, theme-independent. */
+	--color-bench-950: #030507;
+	--color-bench-900: #0b0e12;
+	--color-bench-850: #0e1116;
+	--color-bench-800: #101419;
+	--color-bench-750: #181c22;
+	--color-bench-700: #1f242b;
+	--color-bench-600: #282e36;
+	--color-bench-500: #4e5661;
+	--color-bench-400: #6b737e;
+	--color-bench-300: #939aa4;
+	--color-bench-200: #bcc2ca;
+	--color-bench-100: #e2e6ea;
+	--color-bench-50: #f3f5f7;
+
+	/* Board radii — frame 40 holds the sheet, card 28 is a bento, well 22 nests in it. */
+	--radius-frame: 2.5rem;
+	--radius-card: 1.75rem;
+	--radius-well: 1.375rem;
+	--radius-pill: 9999px;
+
+	--text-hero: 2.75rem;
+	--text-hero--line-height: 1.04;
+	--text-hero--letter-spacing: -0.025em;
+	--text-kpi: 2.5rem; /* a card's headline figure */
+	--text-kpi--line-height: 1;
+	--text-kpi--letter-spacing: -0.03em;
+	--text-kpi-sm: 1.625rem; /* a well's figure */
+	--text-kpi-sm--line-height: 1.05;
+	--text-kpi-sm--letter-spacing: -0.02em;
+	--text-micro: 0.6875rem; /* table heads, stat labels */
+	--text-micro--line-height: 1.2;
+
+	/* Sheets lay out on their own width (`@board:`), never the viewport. */
+	--container-board: 66rem;
+
+	/* Four named curves, one job each. */
+	--ease-instrument: cubic-bezier(0.22, 1, 0.36, 1); /* reveal / settle */
+	--ease-detent: cubic-bezier(0.32, 0.72, 0, 1); /* drawer / sheet / rail */
+	--ease-swell: cubic-bezier(0.65, 0, 0.35, 1); /* hover */
+	--ease-cut: cubic-bezier(0.4, 0, 1, 1); /* exit */
+
+	--animate-rise-in: rise-in 320ms var(--ease-instrument) backwards;
+	--animate-bloom: bloom 700ms var(--ease-instrument) both;
+	--animate-pulse-once: pulse-once 900ms var(--ease-instrument) 1 both;
+
+	@keyframes rise-in {
+		from {
+			opacity: 0;
+			transform: translate3d(0, 8px, 0);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	@keyframes bloom {
+		from {
+			opacity: 0;
+			transform: scale(0.6);
+		}
+		60% {
+			opacity: 1;
+			transform: scale(1.03);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+	@keyframes pulse-once {
+		from {
+			opacity: 0.7;
+			transform: scale(1);
+		}
+		to {
+			opacity: 0;
+			transform: scale(2.8);
+		}
+	}
+}
+
+/* ─── Paper ─────────────────────────────────────────────────────────── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+	--radius: 0.875rem;
+
+	--band: #f3f5f8;
+	--sheet: #ffffff;
+	--card-nested: #ffffff;
+	--ink-2: #545b66;
+	--ink-3: #878e99;
+
+	/* cobalt: fills, marks, big numerals. Text uses --signal-ink (≥ 6:1 on white). */
+	--signal: #2563eb;
+	--signal-ink: #1d4ed8;
+	--signal-soft: color-mix(in oklab, #2563eb 10%, transparent);
+	--inverse: #111418;
+	--inverse-foreground: #ffffff;
+	--glass: rgb(255 255 255 / 0.86);
+	--glass-border: rgb(17 20 24 / 0.07);
+	--critical: #dc2626;
+	--warn: #b76a00;
+	--ok: #2f8f5b;
+	--scroll: #c6ccd4;
+
+	--shadow-card-value: none;
+	--shadow-lift-value: 0 14px 34px -16px rgb(17 20 24 / 0.22);
+	--shadow-glow-value:
+		0 0 0 1px rgb(37 99 235 / 0.28), 0 10px 30px -10px rgb(37 99 235 / 0.5);
+
+	--background: #f3f5f8;
+	--foreground: #111418;
+	--card: #f7f8fa;
+	--card-foreground: #111418;
+	--popover: #ffffff;
+	--popover-foreground: #111418;
+	/* blue-600 keeps white labels at 5.2:1 */
+	--primary: #2563eb;
+	--primary-foreground: #ffffff;
+	--secondary: #edf0f4;
+	--secondary-foreground: #111418;
+	--muted: #eff2f5;
+	--muted-foreground: #545b66;
+	/* shadcn's hover tint — neutral in Paper, not a brand color */
+	--accent: #edf0f4;
+	--accent-foreground: #111418;
+	--destructive: #dc2626;
+	--border: #e3e7ec;
+	--input: #dde2e8;
+	--ring: #2563eb;
+	--chart-1: #2563eb;
+	--chart-2: #d97706;
+	--chart-3: #64748b;
+	--chart-4: #93c5fd;
+	--chart-5: #059669;
+	--sidebar: #f3f5f8;
+	--sidebar-foreground: #111418;
+	--sidebar-primary: #111418;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #ffffff;
+	--sidebar-accent-foreground: #111418;
+	--sidebar-border: #e3e7ec;
+	--sidebar-ring: #2563eb;
+	color-scheme: light;
 }
 
+/* ─── Night ─────────────────────────────────────────────────────────── */
+/* Blue lives in the base, not just the accents (as Raven's teal does): a
+   navy-black canvas, navy glows, and blue-tinted surfaces, hairlines and ink. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+	--band: transparent;
+	/* Translucent so the body's glows read through the sheet. */
+	--sheet: rgb(4 9 22 / 0.5);
+	--card-nested: rgb(214 228 255 / 0.045);
+	--ink-2: #a3b3cc;
+	--ink-3: #5f6f8a;
+
+	--signal: #3b82f6;
+	--signal-ink: #7cb4ff;
+	--signal-soft: rgb(59 130 246 / 0.16);
+	--inverse: #e6edf8;
+	--inverse-foreground: #04070f;
+	--glass: rgb(10 19 40 / 0.8);
+	--glass-border: rgb(150 185 245 / 0.14);
+	--critical: #f87171;
+	--warn: #f2b35b;
+	--ok: #5fd3a6;
+	--scroll: #26344f;
+
+	--shadow-card-value:
+		inset 0 1px 0 rgb(214 228 255 / 0.05), 0 24px 60px -32px rgb(0 0 0 / 0.75);
+	--shadow-lift-value:
+		inset 0 1px 0 rgb(214 228 255 / 0.07), 0 26px 50px -24px rgb(0 0 0 / 0.85);
+	--shadow-glow-value:
+		0 0 0 1px rgb(59 130 246 / 0.5), 0 0 34px -6px rgb(59 130 246 / 0.5);
+
+	--background: #04070f;
+	--foreground: #e6edf8;
+	/* Semi-opaque fill instead of backdrop-filter: blur over a static gradient is invisible. */
+	--card: rgb(18 34 70 / 0.5);
+	--card-foreground: #e6edf8;
+	--popover: #0b1428;
+	--popover-foreground: #e6edf8;
+	/* blue-600, not 500: white labels need ≥ 4.5:1 */
+	--primary: #2563eb;
+	--primary-foreground: #ffffff;
+	--secondary: rgb(214 228 255 / 0.07);
+	--secondary-foreground: #e6edf8;
+	--muted: rgb(214 228 255 / 0.05);
+	--muted-foreground: #a3b3cc;
+	--accent: rgb(59 130 246 / 0.12);
+	--accent-foreground: #e6edf8;
+	--destructive: #f87171;
+	--border: rgb(150 185 245 / 0.1);
+	--input: rgb(150 185 245 / 0.15);
+	--ring: #60a5fa;
+	--chart-1: #3b82f6;
+	--chart-2: #f59e0b;
+	--chart-3: #8ea3c4;
+	--chart-4: #93c5fd;
+	--chart-5: #34d399;
+	--sidebar: rgb(4 7 15 / 0.55);
+	--sidebar-foreground: #e6edf8;
+	--sidebar-primary: #3b82f6;
+	--sidebar-primary-foreground: #04070f;
+	--sidebar-accent: rgb(59 130 246 / 0.12);
+	--sidebar-accent-foreground: #e6edf8;
+	--sidebar-border: rgb(150 185 245 / 0.08);
+	--sidebar-ring: #60a5fa;
+	color-scheme: dark;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	.dark {
+		--sheet: #050b1a;
+		--card: #0e1a36;
+		--glass: #0b1428;
+	}
+	:root:not(.dark) {
+		--glass: #ffffff;
+	}
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-    /* iOS Safari: lets Base UI backdrops cover the full page */
-    position: relative;
-  }
-  /* Base UI portals render above this stacking context */
-  .root {
-    isolation: isolate;
-  }
-  html {
-    @apply font-sans;
-  }
+	* {
+		@apply border-border outline-ring/50;
+		scrollbar-width: thin;
+		scrollbar-color: var(--scroll) transparent;
+	}
+	::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	::-webkit-scrollbar-thumb {
+		background: var(--scroll);
+		border-radius: 9999px;
+	}
+	html {
+		@apply font-sans;
+		font-feature-settings: "cv11", "ss01";
+	}
+	body {
+		@apply bg-background text-foreground;
+		/* iOS Safari: lets Base UI backdrops cover the full page */
+		position: relative;
+	}
+	/* Night's lit room: a blue-graphite bloom top right, a graphite pool bottom
+	   left, a faint blue haze mid-page, then a vignette. */
+	.dark body {
+		background:
+			radial-gradient(1100px 760px at 72% -12%, #15306a 0%, transparent 62%),
+			radial-gradient(900px 700px at -6% 108%, #0c1f47 0%, transparent 58%),
+			radial-gradient(
+				900px 620px at 52% 42%,
+				rgb(59 130 246 / 0.08),
+				transparent 70%
+			),
+			#04070f;
+		background-attachment: fixed;
+	}
+	.dark body::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		box-shadow: inset 0 0 220px rgb(0 0 0 / 0.55);
+		/* below content, above the propagated canvas gradient */
+		z-index: -1;
+	}
+	/* Base UI portals render above this stacking context */
+	.root {
+		isolation: isolate;
+	}
+	::selection {
+		background: color-mix(in oklab, var(--signal) 26%, transparent);
+	}
+	:focus-visible {
+		outline-offset: 2px;
+	}
+}
+
+@utility font-display {
+	font-family: var(--font-display);
+}
+
+/* Tracked mono label — stat labels, group names, key/value keys. */
+@utility readout {
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted-foreground);
+}
+
+@utility tabular {
+	font-variant-numeric: tabular-nums;
+	font-feature-settings: "tnum";
+}
+
+@utility scrollbar-none {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* Bento card: flat paper in Paper, lit glass in Night. */
+@utility bento {
+	border-radius: var(--radius-card);
+	background-color: var(--card);
+	color: var(--card-foreground);
+	box-shadow: var(--shadow-card);
+	border: 1px solid transparent;
+	.dark & {
+		border-color: var(--border);
+		background-image: linear-gradient(
+			160deg,
+			rgb(214 228 255 / 0.04),
+			transparent 42%
+		);
+	}
+}
+
+/* A panel recessed into a bento. */
+@utility well {
+	border-radius: var(--radius-well);
+	background-color: var(--card-nested);
+	box-shadow: 0 0 0 1px var(--border);
+	.dark & {
+		box-shadow: 0 0 0 1px var(--glass-border);
+	}
+}
+
+/* Real frosted glass — overlays only (tab bar, floating pills, menus). */
+@utility glass {
+	background: var(--glass);
+	border: 1px solid var(--glass-border);
+	/* Standard property only: a trailing -webkit- line would win and drop Chrome's blur. */
+	backdrop-filter: blur(20px) saturate(125%);
+}
+
+/* Hover lift for clickable tiles, fine pointers only; press settles. */
+@utility lift {
+	transition:
+		transform 180ms var(--ease-instrument),
+		box-shadow 180ms var(--ease-instrument);
+	@media (hover: hover) and (pointer: fine) {
+		&:hover {
+			transform: translateY(-2px);
+			box-shadow: var(--shadow-lift);
+		}
+	}
+	&:active {
+		transform: scale(0.985);
+	}
+}
+
+/* Entrance stagger via a --i custom property, never an inline animation-delay.
+   `backwards`, not `both`: a filled opacity animation breaks backdrop-filter in Chrome. */
+@utility entrance {
+	animation: rise-in 320ms var(--ease-instrument) backwards;
+	animation-delay: calc(var(--i, 0) * 55ms + 60ms);
+	@media (prefers-reduced-motion: reduce) {
+		animation-delay: 0ms;
+	}
+}
+
+/* Gaze avatar (AvatarStage): the eyes follow --gx/--gy (-1…1, set from the
+   pointer) and blink now and then. Lives in <use> shadow trees, which inherit
+   custom properties from the stage. */
+.gaze-eyes .dbga-look {
+	transform-box: fill-box;
+	transform-origin: center;
+	transform: translate(calc(var(--gx, 0) * 3.2px), calc(var(--gy, 0) * 2.4px));
+}
+.gaze-eyes .dbga-eye {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: gaze-blink 5.2s linear infinite;
+}
+@keyframes gaze-blink {
+	0%,
+	94%,
+	97%,
+	100% {
+		transform: scaleY(1);
+	}
+	95.5% {
+		transform: scaleY(0.08);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }
