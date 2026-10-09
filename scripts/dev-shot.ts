@@ -5,6 +5,8 @@
  *   bun run shot . bots --base http://localhost:3000 --out .shots
  *
  *   bun run shot . --pointer 1200,120 # park the cursor first (hover / pointer-follow states)
+ *   bun run shot . --cookie ellum-rail=open # preset a cookie (e.g. the expanded rail)
+ *   bun run shot . --press Control+k # press a key before the shot (e.g. open the palette)
  *
  * Routes go without the leading slash ("." is home): Git Bash rewrites "/x"
  * arguments into Windows paths.
@@ -29,6 +31,8 @@ const flag = (name: string, fallback: string) => {
 const base = flag("--base", "http://localhost:3000");
 const out = flag("--out", ".shots");
 const pointer = flag("--pointer", "").split(",").map(Number);
+const cookie = flag("--cookie", "");
+const press = flag("--press", "");
 const routes = (args.length ? args : [".", "bots"]).map((r) =>
   r === "." ? "/" : `/${r.replace(/^\/+/, "")}`,
 );
@@ -57,6 +61,10 @@ for (const theme of ["light", "dark"] as const) {
     const context = await browser.newContext({ viewport, colorScheme: theme, deviceScaleFactor: 1 });
     // next-themes reads its choice from localStorage before paint
     await context.addInitScript((t) => localStorage.setItem("theme", t), theme);
+    if (cookie) {
+      const [name, ...value] = cookie.split("=");
+      await context.addCookies([{ name, value: value.join("="), url: base }]);
+    }
     const page = await context.newPage();
     page.on("console", (m) => m.type() === "error" && console.log(`  [console] ${m.text()}`));
 
@@ -69,6 +77,10 @@ for (const theme of ["light", "dark"] as const) {
       await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
       if (pointer.length === 2 && device === "desktop") await page.mouse.move(pointer[0], pointer[1], { steps: 8 });
       await page.waitForTimeout(700); // entrance stagger and springs settle
+      if (press) {
+        await page.keyboard.press(press);
+        await page.waitForTimeout(400);
+      }
       const file = join(out, `${route === "/" ? "home" : route.replace(/^\/|\/$/g, "").replace(/\//g, "_")}-${theme}-${device}.png`);
       await page.screenshot({ path: file, fullPage: true });
       console.log(file);

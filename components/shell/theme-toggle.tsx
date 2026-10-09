@@ -1,29 +1,71 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import type * as React from "react";
 import { useTheme } from "next-themes";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { runThemeTransition } from "@/lib/theme-transition";
 import { cn } from "@/lib/utils";
-import { circle } from "./styles";
+import { circle, railRow } from "./styles";
 
-/** Paper ↔ Night. Icons and labels swap in CSS: resolvedTheme is unknown during SSR. */
-export function ThemeToggle({ className }: { className?: string }) {
+/**
+ * Paper ↔ Night, revealed as a circle growing from the button (Shadow Garden's
+ * toggle). Icons and labels swap in CSS: resolvedTheme is unknown during SSR.
+ */
+export function ThemeToggle({
+  className,
+  tip = true,
+  label,
+}: {
+  /** On the icon circle. */
+  className?: string;
+  tip?: boolean;
+  /** Rendered inside the button beside the circle, so the whole row toggles. */
+  label?: React.ReactNode;
+}) {
   const { resolvedTheme, setTheme } = useTheme();
+  const icons = (
+    <>
+      <Sun className="hidden dark:block" />
+      <Moon className="dark:hidden" />
+    </>
+  );
 
   return (
-    <Tooltip>
+    <Tooltip disabled={!tip}>
       <TooltipTrigger
         render={
           <button
             type="button"
             aria-label="Switch theme"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            className={cn(circle, "text-ink-2 hover:bg-card hover:text-foreground dark:hover:bg-accent", className)}
+            onClick={(e) => {
+              const next = resolvedTheme === "dark" ? "light" : "dark";
+              runThemeTransition({
+                // The reveal grows from the icon circle, not the middle of the row.
+                triggerEl: label ? (e.currentTarget.firstElementChild as HTMLElement) : e.currentTarget,
+                applyTheme: () => {
+                  setTheme(next);
+                  // next-themes sets the class in an effect, after the snapshot; set it now.
+                  document.documentElement.classList.toggle("dark", next === "dark");
+                },
+              });
+            }}
+            className={
+              label
+                ? railRow
+                : cn(circle, "text-ink-2 hover:bg-card hover:text-foreground dark:hover:bg-accent", className)
+            }
           />
         }
       >
-        <Sun className="hidden dark:block" />
-        <Moon className="dark:hidden" />
+        {label ? (
+          <>
+            <span className={cn(circle, "text-ink-2 group-hover:text-foreground", className)}>{icons}</span>
+            {label}
+          </>
+        ) : (
+          icons
+        )}
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={12}>
         <span className="dark:hidden">Switch to dark</span>

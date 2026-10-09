@@ -35,7 +35,7 @@ All tokens live in `app/globals.css`. Tailwind v4 is configured in CSS only; the
 | `text-signal-ink` | signal as **text** (AA) | `#1d4ed8` | `#7cb4ff` |
 | `bg-signal-soft` | tinted fill behind an active pill or chip | signal @ 10% | signal @ 16% |
 | `bg-primary` | filled buttons (white label) | `#2563eb` | `#2563eb` |
-| `bg-inverse` / `text-inverse-foreground` | active rail pill in light, the brand disc | `#111418` / `#fff` | `#e6edf8` / `#04070f` |
+| `bg-inverse` / `text-inverse-foreground` | the brand disc | `#111418` / `#fff` | `#e6edf8` / `#04070f` |
 | `glass` | frosted overlays only | white @ 86% | `rgb(10 19 40 / .8)` |
 | `border-border`, `ring-border` | hairlines | `#e3e7ec` | blue @ 10% |
 | `ring-glass-border` | hairlines on translucent dark surfaces | ink @ 7% | blue @ 14% |
@@ -85,11 +85,13 @@ Never write `font-display uppercase` for a label; use `readout`. Every number us
 
 - **`app/(app)/layout.tsx`** wraps every signed-in route. It contains `NavRail` (md and up), `<main>` and `MobileTabBar` (below md). It also holds the `auth.protect()` gate inside `<Suspense>`, which `cacheComponents` requires for request-time reads.
 - **`nav-rail.tsx`** is an 84px icon rail on `bg-band`:
-  - **Top:** the `EllumMark` disc.
+  - **Top:** the `EllumMark` disc and the create menu (`+`: new bot, group chat). Expanded, the `+` sits right of the logo; collapsed, below it. "Create new bot" opens `BotDialogPanel` (the controlled half of `BotDialog`) grown from the `+`.
   - **Nav capsule:** `rounded-full bg-sheet p-1.5 ring-1`, holding 44px circles with 18px icons at stroke 1.75.
-  - **Active item:** a `motion.span layoutId` pill that springs between items (`SPRING_DETENT`). It is `bg-inverse` in light and `bg-signal-soft shadow-glow` in dark.
+  - **Active item:** a `motion.span layoutId` pill that springs between items (`SPRING_DETENT`). It is `bg-primary` in light and `bg-signal-soft shadow-glow` in dark.
   - **Tooltips:** shown on the right with a 12px offset.
-  - **Bottom:** the theme toggle and Clerk's `UserButton`.
+  - **Bottom:** the collapse toggle (`[`), the theme toggle and Clerk's `UserButton`.
+  - **Expands** to 248px (cookie `ellum-rail`, `lib/shell/rail.ts`): labels fade in beside icons that never move; tooltips only while collapsed.
+- **`theme-toggle.tsx`** reveals the new theme as a circle growing from the button (`lib/theme-transition.ts`, View Transitions with a mask fallback; instant under reduced motion).
 - **`nav.ts`** is the single list of destinations, shared by the rail and the tab bar. Add routes there.
 - **`mobile-tab-bar.tsx`** is a glass pill fixed at the bottom (`inset-x-3 bottom-3 h-16 shadow-lift`).
 - **`styles.ts`** exports `circle`, the shared 44px control. It is a plain module so server components can import it.

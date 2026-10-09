@@ -312,6 +312,24 @@
 	}
 }
 
+/* Theme reveal (lib/theme-transition.ts): the new theme wipes in as a circle
+   from the toggle instead of the default cross-fade. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+	z-index: 1;
+}
+::view-transition-new(root) {
+	z-index: 2;
+}
+/* Collapsed clip pinned until the JS animation starts (Firefox paints it unclipped otherwise). */
+[data-theme-vt="active"]::view-transition-new(root) {
+	clip-path: var(--theme-vt-clip-from);
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
@@ -332,6 +350,9 @@
 	html {
 		@apply font-sans;
 		font-feature-settings: "cv11", "ss01";
+		/* Always reserve the scrollbar's lane: a dialog's scroll lock (or a page
+		   that stops overflowing) would otherwise widen the layout and shift it. */
+		scrollbar-gutter: stable;
 	}
 	body {
 		@apply bg-background text-foreground;

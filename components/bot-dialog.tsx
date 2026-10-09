@@ -52,6 +52,37 @@ type BotDialogProps = Omit<ComponentProps<typeof Button>, "onClick" | "children"
 export function BotDialog({ children, ...trigger }: BotDialogProps) {
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
+
+  return (
+    <>
+      <Button
+        {...trigger}
+        onClick={(e) => {
+          setOrigin(e.currentTarget.getBoundingClientRect());
+          setOpen(true);
+        }}
+      >
+        {children}
+      </Button>
+      <BotDialogPanel open={open} onOpenChange={setOpen} origin={origin} />
+    </>
+  );
+}
+
+/**
+ * The dialog alone, for triggers that aren't a Button (a menu item). Keep it
+ * mounted: unmounting would skip the shrink-back exit.
+ */
+export function BotDialogPanel({
+  open,
+  onOpenChange: setOpen,
+  origin,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** The rect the panel grows out of and shrinks back into. */
+  origin: DOMRect | null;
+}) {
   const [pending, startTransition] = useTransition();
 
   const form = useForm<CreateBotInput>({
@@ -84,151 +115,138 @@ export function BotDialog({ children, ...trigger }: BotDialogProps) {
   }
 
   return (
-    <>
-      <Button
-        {...trigger}
-        onClick={(e) => {
-          setOrigin(e.currentTarget.getBoundingClientRect());
-          setOpen(true);
-        }}
+    <GrowDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      originRect={origin}
+      originMaxWidth={PANEL_WIDTH}
+      radius={24}
+      title="New bot"
+      description="Give it a face, a name, and a job to do."
+      className="max-w-[520px]"
+    >
+      <form
+        noValidate
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex min-h-0 flex-1 flex-col"
       >
-        {children}
-      </Button>
-
-      {/* Always mounted: unmounting would skip the shrink-back exit. */}
-      <GrowDialog
-        open={open}
-        onOpenChange={onOpenChange}
-        originRect={origin}
-        originMaxWidth={PANEL_WIDTH}
-        radius={24}
-        title="New bot"
-        description="Give it a face, a name, and a job to do."
-        className="max-w-[520px]"
-      >
-        <form
-          noValidate
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5">
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Start from a template">
-              {TEMPLATES.map((t) => (
-                <Button
-                  key={t.job}
-                  type="button"
-                  size="pill-sm"
-                  variant="surface"
-                  disabled={pending}
-                  onClick={() =>
-                    form.reset({ ...t, avatar: form.getValues("avatar") }, { keepDefaultValues: true })
-                  }
-                >
-                  {t.job}
-                </Button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span
-                aria-hidden
-                className="grid size-12 shrink-0 place-items-center [&_svg]:size-full"
-                // Generated locally by DiceBear from a seed: trusted markup.
-                dangerouslySetInnerHTML={{ __html: face }}
-              />
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-sm font-medium text-ink">Face</span>
-                <span className="text-[13px] text-ink-2">Shuffle until you find one you like.</span>
-              </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Start from a template">
+            {TEMPLATES.map((t) => (
               <Button
+                key={t.job}
                 type="button"
                 size="pill-sm"
                 variant="surface"
                 disabled={pending}
-                onClick={() => form.setValue("avatar", nanoid(10), { shouldDirty: true })}
+                onClick={() =>
+                  form.reset({ ...t, avatar: form.getValues("avatar") }, { keepDefaultValues: true })
+                }
               >
-                <Shuffle data-icon="inline-start" />
-                Shuffle
+                {t.job}
               </Button>
-            </div>
-
-            <FieldGroup>
-              <Controller
-                name="name"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="bot-name">Name</FieldLabel>
-                    <Input
-                      {...field}
-                      id="bot-name"
-                      placeholder="Ada"
-                      autoComplete="off"
-                      aria-invalid={fieldState.invalid}
-                      disabled={pending}
-                    />
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="job"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="bot-job">Job</FieldLabel>
-                    <Input
-                      {...field}
-                      id="bot-job"
-                      placeholder="Research assistant"
-                      autoComplete="off"
-                      aria-invalid={fieldState.invalid}
-                      disabled={pending}
-                    />
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="instructions"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="bot-instructions">How it should work</FieldLabel>
-                    <CountedTextarea
-                      max={INSTRUCTIONS_MAX}
-                      {...field}
-                      value={field.value ?? ""}
-                      id="bot-instructions"
-                      placeholder="Answer briefly, cite sources, and ask before running anything destructive."
-                      aria-invalid={fieldState.invalid}
-                      disabled={pending}
-                      className="min-h-24"
-                    />
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
-            </FieldGroup>
+            ))}
           </div>
 
-          <div className="flex justify-end gap-2 px-5 pt-1 pb-5">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="grid size-12 shrink-0 place-items-center [&_svg]:size-full"
+              // Generated locally by DiceBear from a seed: trusted markup.
+              dangerouslySetInnerHTML={{ __html: face }}
+            />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-sm font-medium text-ink">Face</span>
+              <span className="text-[13px] text-ink-2">Shuffle until you find one you like.</span>
+            </div>
             <Button
               type="button"
               size="pill-sm"
               variant="surface"
               disabled={pending}
-              onClick={() => setOpen(false)}
+              onClick={() => form.setValue("avatar", nanoid(10), { shouldDirty: true })}
             >
-              Cancel
-            </Button>
-            <Button type="submit" size="pill-sm" disabled={pending}>
-              {pending && <Spinner data-icon="inline-start" />}
-              Create bot
+              <Shuffle data-icon="inline-start" />
+              Shuffle
             </Button>
           </div>
-        </form>
-      </GrowDialog>
-    </>
+
+          <FieldGroup>
+            <Controller
+              name="name"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="bot-name">Name</FieldLabel>
+                  <Input
+                    {...field}
+                    id="bot-name"
+                    placeholder="Ada"
+                    autoComplete="off"
+                    aria-invalid={fieldState.invalid}
+                    disabled={pending}
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              name="job"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="bot-job">Job</FieldLabel>
+                  <Input
+                    {...field}
+                    id="bot-job"
+                    placeholder="Research assistant"
+                    autoComplete="off"
+                    aria-invalid={fieldState.invalid}
+                    disabled={pending}
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <Controller
+              name="instructions"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="bot-instructions">How it should work</FieldLabel>
+                  <CountedTextarea
+                    max={INSTRUCTIONS_MAX}
+                    {...field}
+                    value={field.value ?? ""}
+                    id="bot-instructions"
+                    placeholder="Answer briefly, cite sources, and ask before running anything destructive."
+                    aria-invalid={fieldState.invalid}
+                    disabled={pending}
+                    className="min-h-24"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+        </div>
+
+        <div className="flex justify-end gap-2 px-5 pt-1 pb-5">
+          <Button
+            type="button"
+            size="pill-sm"
+            variant="surface"
+            disabled={pending}
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" size="pill-sm" disabled={pending}>
+            {pending && <Spinner data-icon="inline-start" />}
+            Create bot
+          </Button>
+        </div>
+      </form>
+    </GrowDialog>
   );
 }

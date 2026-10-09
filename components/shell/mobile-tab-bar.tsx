@@ -26,7 +26,7 @@ export function MobileTabBar() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={cn(item, active && "bg-inverse text-inverse-foreground dark:bg-signal-soft dark:text-signal")}
+            className={cn(item, active && "bg-primary text-primary-foreground dark:bg-signal-soft dark:text-signal")}
           >
             <Icon strokeWidth={1.75} />
             <span className="sr-only">{label}</span>
