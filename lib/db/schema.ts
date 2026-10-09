@@ -1,17 +1,22 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { nanoid } from "nanoid";
 
-// Users are owned by Clerk; we key rows by the Clerk user id.
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const notes = pgTable("notes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  body: text("body").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const bots = pgTable(
+  "bots",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    // Clerk user id.
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    // Seed for the bot's generated face.
+    avatar: text("avatar").notNull().$defaultFn(() => nanoid()),
+    // What the bot is for, in a phrase.
+    job: text("job").notNull(),
+    // How it should go about the job.
+    instructions: text("instructions"),
+    // Created lazily on first use.
+    sandboxId: text("sandbox_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("bots_user_id_idx").on(t.userId)],
+);
