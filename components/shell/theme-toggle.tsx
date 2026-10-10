@@ -3,7 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import type * as React from "react";
 import { useTheme } from "next-themes";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tip } from "@/components/ui/tooltip";
 import { runThemeTransition } from "@/lib/theme-transition";
 import { cn } from "@/lib/utils";
 import { circle, railRow } from "./styles";
@@ -32,9 +32,15 @@ export function ThemeToggle({
   );
 
   return (
-    <Tooltip disabled={!tip}>
-      <TooltipTrigger
-        render={
+    <Tip
+      label={
+        <>
+          <span className="dark:hidden">Switch to dark</span>
+          <span className="hidden dark:inline">Switch to light</span>
+        </>
+      }
+      disabled={!tip}
+      render={
           <button
             type="button"
             aria-label="Switch theme"
@@ -66,11 +72,6 @@ export function ThemeToggle({
         ) : (
           icons
         )}
-      </TooltipTrigger>
-      <TooltipContent side="right" sideOffset={12}>
-        <span className="dark:hidden">Switch to dark</span>
-        <span className="hidden dark:inline">Switch to light</span>
-      </TooltipContent>
-    </Tooltip>
+    </Tip>
   );
 }

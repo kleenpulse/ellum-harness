@@ -12,8 +12,15 @@ const item =
 
 /** Below md the rail becomes a floating glass tab bar. */
 export function MobileTabBar() {
-  const pathname = usePathname();
+  return <TabBar pathname={usePathname()} />;
+}
 
+/** The static shell's tab bar: "" matches no destination, so nothing is active until the pathname streams in. */
+export function MobileTabBarFallback() {
+  return <TabBar pathname="" />;
+}
+
+function TabBar({ pathname }: { pathname: string }) {
   return (
     <nav
       aria-label="Primary"

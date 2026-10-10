@@ -4,6 +4,8 @@
 @import "@clerk/ui/themes/shadcn.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* Expanded nav rail: <html data-rail="open">, set before paint (lib/shell/rail.ts). */
+@custom-variant rail-open (&:where([data-rail="open"] *));
 
 /*
  * Ellum — one token vocabulary, two skins. See DESIGN.md.

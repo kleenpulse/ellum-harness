@@ -12,12 +12,12 @@ export const insertBotSchema = createInsertSchema(bots, {
   instructions: (s) => s.trim().max(INSTRUCTIONS_MAX, `Keep instructions under ${INSTRUCTIONS_MAX.toLocaleString("en-US")} characters.`),
 });
 
-/** What a user fills in. Ownership, ids and timestamps are set on the server. */
-export const createBotSchema = insertBotSchema.pick({
+/** What a user fills in, creating or editing. Ownership, ids and timestamps are set on the server. */
+export const botSchema = insertBotSchema.pick({
   name: true,
   avatar: true,
   job: true,
   instructions: true,
 });
 
-export type CreateBotInput = z.input<typeof createBotSchema>;
+export type BotInput = z.input<typeof botSchema>;

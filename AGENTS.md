@@ -29,6 +29,10 @@ Before the final response, run one reporting pass. If candidates remain, from th
 
 <!-- END:nextjs-agent-feedback -->
 
+## Who you're working with
+
+The owner is an experienced engineer, not some NPC vibe coder. When they report a bug, their observation (what they saw, when, what made it go away) is evidence: build the theory around it, never explain it away as intended design. Skip the basics, push back with reasons when you disagree, and say plainly when your own earlier call was wrong.
+
 ## Database schema changes
 
 Schema: `lib/db/schema.ts`. Apply only with `bun run db:push` (`drizzle-kit push`). No migrations: no `drizzle-kit generate`/`migrate`, migration SQL, or `drizzle/` folder.

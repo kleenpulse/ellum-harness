@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
 	/* config options here */
 	experimental: {
 		agentFeedback: true,
+		// retries navigations/actions after a network drop; powers useOffline()
+		useOffline: true,
 	},
 	cacheComponents: true,
 	partialPrefetching: true,

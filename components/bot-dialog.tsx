@@ -5,7 +5,7 @@ import { Shuffle } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useMemo, useState, useTransition, type ComponentProps, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { createBot } from "@/actions/bot";
+import { createBot, updateBot } from "@/actions/bot";
 import { gazeSvg } from "@/components/chat-avatar";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { CountedTextarea } from "@/components/ui/counted-textarea";
 import { toast } from "@/components/ui/toast";
-import { createBotSchema, INSTRUCTIONS_MAX, type CreateBotInput } from "@/lib/db/validation";
+import { botSchema, INSTRUCTIONS_MAX, type BotInput } from "@/lib/db/validation";
 
 const TEMPLATES = [
   {
@@ -41,15 +41,35 @@ const TEMPLATES = [
 
 const PANEL_WIDTH = 520;
 
-const blank = (): CreateBotInput => ({ name: "", avatar: nanoid(10), job: "", instructions: "" });
+const blank = (): BotInput => ({ name: "", avatar: nanoid(10), job: "", instructions: "" });
 
-type BotDialogProps = Omit<ComponentProps<typeof Button>, "onClick" | "children"> & {
-  /** The trigger's label. The dialog grows out of the trigger. */
-  children: ReactNode;
+/** An existing bot to edit. Without one, the dialog creates a new bot. */
+export type EditableBot = {
+  id: string;
+  name: string;
+  avatar: string;
+  job: string;
+  instructions: string | null;
 };
 
-/** A "new bot" trigger and the dialog it opens: templates, a shuffled face, name, job and instructions. */
-export function BotDialog({ children, ...trigger }: BotDialogProps) {
+const fromBot = (bot: EditableBot): BotInput => ({
+  name: bot.name,
+  avatar: bot.avatar,
+  job: bot.job,
+  instructions: bot.instructions ?? "",
+});
+
+type BotDialogProps = Omit<ComponentProps<typeof Button>, "onClick" | "children"> & {
+  /** The trigger's content. The dialog grows out of the trigger. */
+  children: ReactNode;
+  bot?: EditableBot;
+};
+
+/**
+ * A bot trigger and the dialog it opens: a shuffled face, name, job and
+ * instructions. New bots also get templates; pass `bot` to edit one instead.
+ */
+export function BotDialog({ children, bot, ...trigger }: BotDialogProps) {
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
 
@@ -64,7 +84,7 @@ export function BotDialog({ children, ...trigger }: BotDialogProps) {
       >
         {children}
       </Button>
-      <BotDialogPanel open={open} onOpenChange={setOpen} origin={origin} />
+      <BotDialogPanel open={open} onOpenChange={setOpen} origin={origin} bot={bot} />
     </>
   );
 }
@@ -77,17 +97,19 @@ export function BotDialogPanel({
   open,
   onOpenChange: setOpen,
   origin,
+  bot,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The rect the panel grows out of and shrinks back into. */
   origin: DOMRect | null;
+  bot?: EditableBot;
 }) {
   const [pending, startTransition] = useTransition();
 
-  const form = useForm<CreateBotInput>({
-    resolver: zodResolver(createBotSchema),
-    defaultValues: blank(),
+  const form = useForm<BotInput>({
+    resolver: zodResolver(botSchema),
+    defaultValues: bot ? fromBot(bot) : blank(),
   });
 
   const seed = useWatch({ control: form.control, name: "avatar" }) ?? "";
@@ -98,19 +120,24 @@ export function BotDialogPanel({
     setOpen(next);
   }
 
-  function onSubmit(values: CreateBotInput) {
+  function onSubmit(values: BotInput) {
     startTransition(async () => {
-      const result = await createBot(values);
+      const result = bot ? await updateBot(bot.id, values) : await createBot(values);
       if (!result.ok) {
         for (const [key, messages] of Object.entries(result.fieldErrors ?? {})) {
-          if (messages?.[0]) form.setError(key as keyof CreateBotInput, { message: messages[0] });
+          if (messages?.[0]) form.setError(key as keyof BotInput, { message: messages[0] });
         }
-        toast.add({ title: "Couldn't create the bot", description: result.error, type: "error" });
+        toast.add({ title: bot ? "Couldn't save the bot" : "Couldn't create the bot", description: result.error, type: "error" });
         return;
       }
-      toast.add({ title: `${result.name} is ready`, description: "Its sandbox starts the first time you use it.", type: "success" });
+      if (bot) {
+        toast.add({ title: `${result.name} is updated`, type: "success" });
+      } else {
+        toast.add({ title: `${result.name} is ready`, description: "Its sandbox starts the first time you use it.", type: "success" });
+      }
       setOpen(false);
-      form.reset(blank());
+      // Editing: the saved values become the new baseline for the next open.
+      form.reset(bot ? values : blank());
     });
   }
 
@@ -121,8 +148,8 @@ export function BotDialogPanel({
       originRect={origin}
       originMaxWidth={PANEL_WIDTH}
       radius={24}
-      title="New bot"
-      description="Give it a face, a name, and a job to do."
+      title={bot ? "Edit bot" : "New bot"}
+      description={bot ? "Change its face, name, job or instructions." : "Give it a face, a name, and a job to do."}
       className="max-w-[520px]"
     >
       <form
@@ -131,22 +158,24 @@ export function BotDialogPanel({
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 pb-5">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Start from a template">
-            {TEMPLATES.map((t) => (
-              <Button
-                key={t.job}
-                type="button"
-                size="pill-sm"
-                variant="surface"
-                disabled={pending}
-                onClick={() =>
-                  form.reset({ ...t, avatar: form.getValues("avatar") }, { keepDefaultValues: true })
-                }
-              >
-                {t.job}
-              </Button>
-            ))}
-          </div>
+          {!bot && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Start from a template">
+              {TEMPLATES.map((t) => (
+                <Button
+                  key={t.job}
+                  type="button"
+                  size="pill-sm"
+                  variant="surface"
+                  disabled={pending}
+                  onClick={() =>
+                    form.reset({ ...t, avatar: form.getValues("avatar") }, { keepDefaultValues: true })
+                  }
+                >
+                  {t.job}
+                </Button>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <span
@@ -243,7 +272,7 @@ export function BotDialogPanel({
           </Button>
           <Button type="submit" size="pill-sm" disabled={pending}>
             {pending && <Spinner data-icon="inline-start" />}
-            Create bot
+            {bot ? "Save changes" : "Create bot"}
           </Button>
         </div>
       </form>

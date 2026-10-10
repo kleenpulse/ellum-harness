@@ -83,16 +83,17 @@ Never write `font-display uppercase` for a label; use `readout`. Every number us
 └──────┴──────────────────────────────────────────────┘
 ```
 
-- **`app/(app)/layout.tsx`** wraps every signed-in route. It contains `NavRail` (md and up), `<main>` and `MobileTabBar` (below md). It also holds the `auth.protect()` gate inside `<Suspense>`, which `cacheComponents` requires for request-time reads.
+- **`app/(dashboard)/layout.tsx`** wraps every signed-in route. It contains `NavRail` (md and up), `<main>` and `MobileTabBar` (below md). It also holds the `auth.protect()` gate inside `<Suspense>`, which `cacheComponents` requires for request-time reads.
 - **`nav-rail.tsx`** is an 84px icon rail on `bg-band`:
   - **Top:** the `EllumMark` disc and the create menu (`+`: new bot, group chat). Expanded, the `+` sits right of the logo; collapsed, below it. "Create new bot" opens `BotDialogPanel` (the controlled half of `BotDialog`) grown from the `+`.
   - **Nav capsule:** `rounded-full bg-sheet p-1.5 ring-1`, holding 44px circles with 18px icons at stroke 1.75.
   - **Active item:** a `motion.span layoutId` pill that springs between items (`SPRING_DETENT`). It is `bg-primary` in light and `bg-signal-soft shadow-glow` in dark.
   - **Tooltips:** shown on the right with a 12px offset.
-  - **Bottom:** the collapse toggle (`[`), the theme toggle and Clerk's `UserButton`.
+  - **Bottom:** the collapse toggle (`[`; visible only while the rail is hovered or it has keyboard focus, its slot kept), the theme toggle, Settings (`SETTINGS_NAV`, same springing active pill as the capsule) and Clerk's `UserButton`.
   - **Expands** to 248px (cookie `ellum-rail`, `lib/shell/rail.ts`): labels fade in beside icons that never move; tooltips only while collapsed.
+  - **Open/closed looks are `rail-open:` classes**, keyed off `<html data-rail>`, which `RAIL_PREPAINT` (inline in the root layout) sets from the cookie before first paint. The static shell paints the Suspense fallback rail first, so never pick rail classes or mount/unmount rail markup from React state; React `expanded` is for tooltips, aria and menu side only.
 - **`theme-toggle.tsx`** reveals the new theme as a circle growing from the button (`lib/theme-transition.ts`, View Transitions with a mask fallback; instant under reduced motion).
-- **`nav.ts`** is the single list of destinations, shared by the rail and the tab bar. Add routes there.
+- **`nav.ts`** is the single list of destinations: `PRIMARY_NAV` (the rail capsule) and `SETTINGS_NAV` (the rail foot); `NAV` joins them for the tab bar. Add routes there.
 - **`mobile-tab-bar.tsx`** is a glass pill fixed at the bottom (`inset-x-3 bottom-3 h-16 shadow-lift`).
 - **`styles.ts`** exports `circle`, the shared 44px control. It is a plain module so server components can import it.
 - **`page-frame.tsx`** contains `PageFrame` (props `title`, `subtitle`, `actions`, `intro`, `children`), `SheetHeading` and `PAGE_COLUMN` (`max-w-[calc(1900px-84px)] px-5 md:px-8`). The sheet body is an `@container`. For columns, use `grid grid-cols-12 gap-4` and span with `@3xl:` / `@board:`.
