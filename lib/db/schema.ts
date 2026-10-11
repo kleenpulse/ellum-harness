@@ -15,7 +15,7 @@ export const bots = pgTable(
     job: text("job").notNull(),
     // How it should go about the job.
     instructions: text("instructions"),
-    // Created lazily on first use.
+    // Daytona sandbox, created and deleted with the bot.
     sandboxId: text("sandbox_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
