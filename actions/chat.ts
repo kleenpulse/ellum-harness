@@ -6,7 +6,9 @@ import { chat, defaultStorage, type ChatStartSessionParams } from "@trigger.dev/
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { chats } from "@/lib/db/schema";
+import type { LoadTranscriptResult } from "@trigger.dev/sdk/chat/react";
 import type { chatAgent } from "@/trigger/chat";
+import type { ChatUIMessage } from "@/trigger/sandbox-tools";
 
 // chatId comes from the browser: signed in isn't enough, the chat must be theirs.
 async function assertOwnChat(chatId: string) {
@@ -39,7 +41,11 @@ export async function mintChatAccessToken(chatId: string) {
 }
 
 /** The chat's saved history, for rendering before the stream connects. */
-export async function loadChatTranscript(params: { chatId: string; limit?: number }) {
+export async function loadChatTranscript(params: {
+  chatId: string;
+  limit?: number;
+}): Promise<LoadTranscriptResult<ChatUIMessage>> {
   await assertOwnChat(params.chatId);
-  return load(params);
+  // The SDK's loader isn't generic; this chat's agent only ever writes ChatUIMessages.
+  return (await load(params)) as LoadTranscriptResult<ChatUIMessage>;
 }

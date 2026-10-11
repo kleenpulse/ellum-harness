@@ -1,7 +1,6 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
 import type { TriggerChatTransport } from "@trigger.dev/sdk/chat";
 import { useLoadTranscript, useTriggerChatTransport } from "@trigger.dev/sdk/chat/react";
 import { loadChatTranscript, mintChatAccessToken, startChatSession } from "@/actions/chat";
@@ -11,6 +10,11 @@ import {
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
+import { ChatTool, isToolPart } from "@/components/chat-tool";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { CircleAlertIcon } from "lucide-react";
 import {
   PromptInput,
   PromptInputBody,
@@ -19,6 +23,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import type { chatAgent } from "@/trigger/chat";
+import type { ChatUIMessage } from "@/trigger/sandbox-tools";
 
 /** Chat against the Trigger.dev chat agent. History comes from the agent's transcript storage. */
 export function Chat({ chatId }: { chatId: string }) {
@@ -42,10 +47,10 @@ function ChatView({
   transport,
 }: {
   chatId: string;
-  initialMessages: UIMessage[];
+  initialMessages: ChatUIMessage[];
   transport: TriggerChatTransport;
 }) {
-  const { messages, sendMessage, status, stop } = useChat({
+  const { messages, sendMessage, status, stop, error, regenerate } = useChat<ChatUIMessage>({
     id: chatId,
     messages: initialMessages,
     transport,
@@ -57,17 +62,40 @@ function ChatView({
     <div className="flex min-h-0 flex-1 flex-col">
       <Conversation className="flex-1">
         <ConversationContent>
-          {messages.map((message) => (
+          {messages.map((message, m) => (
             <Message from={message.role} key={message.id}>
               <MessageContent>
-                {message.parts.map((part, i) =>
-                  part.type === "text" ? (
-                    <MessageResponse key={`${message.id}-${i}`}>{part.text}</MessageResponse>
-                  ) : null,
-                )}
+                {message.parts.map((part, i) => {
+                  const key = `${message.id}-${i}`;
+                  if (part.type === "text") return <MessageResponse key={key}>{part.text}</MessageResponse>;
+                  if (part.type === "reasoning") {
+                    const live =
+                      status === "streaming" && m === messages.length - 1 && i === message.parts.length - 1;
+                    return (
+                      <Reasoning key={key} isStreaming={live}>
+                        <ReasoningTrigger />
+                        <ReasoningContent>{part.text}</ReasoningContent>
+                      </Reasoning>
+                    );
+                  }
+                  if (isToolPart(part)) return <ChatTool key={key} part={part} />;
+                  return null;
+                })}
               </MessageContent>
             </Message>
           ))}
+          {error && (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>The bot stopped partway.</AlertTitle>
+              <AlertDescription>Its model or sandbox didn&apos;t respond. Try again in a moment.</AlertDescription>
+              <AlertAction>
+                <Button size="pill-sm" variant="surface" onClick={() => regenerate()}>
+                  Retry
+                </Button>
+              </AlertAction>
+            </Alert>
+          )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
