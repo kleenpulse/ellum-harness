@@ -2,7 +2,10 @@
 
 import { RotateCw } from "lucide-react";
 import { useOffline } from "next/offline";
-import { useEffect, useTransition } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useEffect, useMemo, useTransition } from "react";
+import { AvatarStage } from "@/components/avatar-stage";
+import { gazeSvg } from "@/components/chat-avatar";
 import { Button } from "@/components/ui/button";
 import { PaneState } from "@/components/ui/pane-state";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,6 +23,11 @@ export function RouteError({
 }) {
   const isOffline = useOffline();
   const [pending, startTransition] = useTransition();
+  const { user } = useUser();
+  // Mirrors AVATAR_SEED_KEY in lib/avatar.ts (server-only). Deterministic fallback: a random one would mismatch on hydration.
+  const preferred = user?.unsafeMetadata?.avatarSeed;
+  const seed = typeof preferred === "string" && preferred ? preferred : (error.digest ?? "ellum");
+  const svg = useMemo(() => gazeSvg(seed), [seed]);
 
   useEffect(() => {
     // the server's message is redacted in production; the cause chain lives in server logs
@@ -29,6 +37,7 @@ export function RouteError({
   return (
     <PaneState
       tone="critical"
+      media={<AvatarStage svg={svg} />}
       className={cn("min-h-svh", className)}
       title={isOffline ? "You're offline" : "Couldn't load this page"}
       action={
