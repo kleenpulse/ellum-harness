@@ -3,9 +3,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { auth as triggerAuth } from "@trigger.dev/sdk";
 import { chat, defaultStorage, type ChatStartSessionParams } from "@trigger.dev/sdk/ai";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { refresh } from "next/cache";
+import { nanoid } from "nanoid";
+import { z } from "zod";
 import { db } from "@/lib/db";
-import { chats } from "@/lib/db/schema";
+import { bots, chatMembers, chats } from "@/lib/db/schema";
+import { groupChatSchema, type GroupChatInput } from "@/lib/db/validation";
 import type { LoadTranscriptResult } from "@trigger.dev/sdk/chat/react";
 import type { chatAgent } from "@/trigger/chat";
 import type { ChatUIMessage } from "@/trigger/sandbox-tools";
@@ -48,4 +52,41 @@ export async function loadChatTranscript(params: {
   await assertOwnChat(params.chatId);
   // The SDK's loader isn't generic; this chat's agent only ever writes ChatUIMessages.
   return (await load(params)) as LoadTranscriptResult<ChatUIMessage>;
+}
+
+export type CreateGroupChatResult =
+  | { ok: true; id: string; name: string }
+  | { ok: false; error: string; fieldErrors?: Partial<Record<keyof GroupChatInput, string[]>> };
+
+export async function createGroupChat(input: GroupChatInput): Promise<CreateGroupChatResult> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Sign in to create a group chat." };
+
+  const parsed = groupChatSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Check the highlighted fields.",
+      fieldErrors: z.flattenError(parsed.error).fieldErrors,
+    };
+  }
+
+  const botIds = [...new Set(parsed.data.botIds)];
+  // Bot ids come from the browser: every one must be the user's own.
+  const owned = await db
+    .select({ id: bots.id })
+    .from(bots)
+    .where(and(inArray(bots.id, botIds), eq(bots.userId, userId)));
+  if (owned.length !== botIds.length) {
+    return { ok: false, error: "Some of those bots no longer exist.", fieldErrors: { botIds: ["Pick from your bots."] } };
+  }
+
+  const id = nanoid();
+  await db.batch([
+    db.insert(chats).values({ id, userId, kind: "group", name: parsed.data.name }),
+    db.insert(chatMembers).values(botIds.map((botId) => ({ chatId: id, botId }))),
+  ]);
+
+  refresh();
+  return { ok: true, id, name: parsed.data.name };
 }

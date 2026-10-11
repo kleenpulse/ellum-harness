@@ -18,12 +18,11 @@ export async function openDesktop(chatId: string): Promise<DesktopResult> {
   if (!userId) return { ok: false, error: "Sign in to see the desktop." };
 
   const chat = await db.query.chats.findFirst({
-    where: and(eq(chats.id, chatId), eq(chats.userId, userId)),
+    // Direct chats only: a group has no single desktop to show.
+    where: and(eq(chats.id, chatId), eq(chats.userId, userId), eq(chats.kind, "direct")),
     columns: { id: true },
     with: {
-      // Same bot the header shows: groups use their first member for now.
       members: {
-        orderBy: (m, { asc }) => asc(m.joinedAt),
         limit: 1,
         with: { bot: { columns: { sandboxId: true } } },
       },

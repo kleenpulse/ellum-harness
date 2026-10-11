@@ -1,6 +1,5 @@
 import type { Sandbox } from "@daytona/sdk";
-import type { InferChatUIMessageFromTools } from "@trigger.dev/sdk/ai";
-import { tool, type ModelMessage, type ToolResultPart } from "ai";
+import { tool, type InferUITools, type ModelMessage, type ToolResultPart, type UIDataTypes, type UIMessage } from "ai";
 import { z } from "zod";
 import { ensureDesktop } from "@/lib/daytona/client";
 
@@ -217,7 +216,9 @@ export function createSandboxTools(sandbox: () => Promise<Sandbox>) {
 }
 
 export type SandboxTools = ReturnType<typeof createSandboxTools>;
-export type ChatUIMessage = InferChatUIMessageFromTools<SandboxTools>;
+/** In a group chat, a user message records which bot it was sent to. */
+export type ChatMessageMetadata = { botId?: string };
+export type ChatUIMessage = UIMessage<ChatMessageMetadata, UIDataTypes, InferUITools<SandboxTools>>;
 
 // NVIDIA's endpoint rejects images inside tool messages, so each screenshot
 // moves into a user message right after its tool result. Only the newest

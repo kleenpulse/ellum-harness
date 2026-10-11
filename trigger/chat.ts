@@ -54,8 +54,12 @@ Your tools act on this computer: a shell, its files, its mouse and keyboard, and
 - Never claim to have done, checked or run something you haven't. If you don't know, say so.`,
 });
 
-// Owner-scoped through the chat row; the bot's identity never comes from the client.
-async function botForChat(chatId: string) {
+/**
+ * The bot answering this turn, owner-scoped through the chat row. A direct
+ * chat has one; a group names it per turn, and that id is only trusted if
+ * the bot is a member of the chat.
+ */
+async function botForChat(chatId: string, botId?: string) {
   const [row] = await db
     .select({
       name: bots.name,
@@ -66,21 +70,28 @@ async function botForChat(chatId: string) {
     .from(chats)
     .innerJoin(chatMembers, eq(chatMembers.chatId, chats.id))
     .innerJoin(bots, and(eq(bots.id, chatMembers.botId), eq(bots.userId, chats.userId)))
-    .where(and(eq(chats.id, chatId), eq(chats.kind, "direct")))
+    .where(
+      and(
+        eq(chats.id, chatId),
+        botId ? eq(chatMembers.botId, botId) : eq(chats.kind, "direct"),
+      ),
+    )
     .limit(1);
-  if (!row) throw new Error(`No bot for chat ${chatId}`);
+  if (!row) throw new Error(`No bot ${botId ?? ""} for chat ${chatId}`);
   return row;
 }
 
 // No `storage`: the platform's default transcript storage keeps each conversation, keyed by chatId.
 export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   id: "chat",
+  // Groups pick the bot that answers each turn; sent as per-message metadata.
+  clientDataSchema: z.object({ botId: z.string().optional() }),
   // Per turn so the sandbox is the chat's bot's. On the config, not only on
   // streamText, so screenshots' toModelOutput survives into later turns.
-  tools: ({ chatId }) => {
+  tools: ({ chatId, clientData }) => {
     let pending: Promise<Sandbox> | undefined;
     return createSandboxTools(() => {
-      pending ??= botForChat(chatId)
+      pending ??= botForChat(chatId, clientData?.botId)
         .then(({ sandboxId }) => {
           if (!sandboxId) throw new Error("This bot has no sandbox.");
           return getRunningSandbox(sandboxId);
@@ -95,8 +106,8 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   },
   // Every turn, not onChatStart: that skips continuation runs, and a bot
   // edited mid-chat should answer as its new self on the next message.
-  onTurnStart: async ({ chatId }) => {
-    const bot = await botForChat(chatId);
+  onTurnStart: async ({ chatId, clientData }) => {
+    const bot = await botForChat(chatId, clientData?.botId);
     const resolved = await botSystemPrompt.resolve({
       name: bot.name,
       job: bot.job,

@@ -23,7 +23,8 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { BotDialogPanel } from "@/components/bot-dialog";
-import { ChatAvatar } from "@/components/chat-avatar";
+import { GroupChatAvatar } from "@/components/group-chat-avatar";
+import { type GroupChatBot, GroupChatDialogPanel } from "@/components/group-chat-dialog";
 import CommandPalette, {
 	type CommandGroupDef,
 } from "@/components/ui/command-palette";
@@ -82,6 +83,8 @@ type NavRailProps = {
 	/** From the cookie: what `expanded` reads during hydration. */
 	initialExpanded: boolean;
 	chats: ChatListItem[];
+	/** The user's bots, for picking group members. */
+	bots: GroupChatBot[];
 	className?: string;
 };
 
@@ -100,6 +103,7 @@ export function NavRailFallback(props: NavRailProps) {
 function Rail({
 	initialExpanded,
 	chats,
+	bots,
 	className,
 	pathname,
 }: NavRailProps & { pathname: string }) {
@@ -109,10 +113,11 @@ function Rail({
 	const createRef = useRef<HTMLButtonElement>(null);
 	const [botOpen, setBotOpen] = useState(false);
 	const [botOrigin, setBotOrigin] = useState<DOMRect | null>(null);
+	const [groupOpen, setGroupOpen] = useState(false);
+	const [groupOrigin, setGroupOrigin] = useState<DOMRect | null>(null);
 	const router = useRouter();
 	const [searchOpen, setSearchOpen] = useState(false);
 
-	// Group chats show their first bot's face until they get one of their own.
 	const searchGroups = useMemo<CommandGroupDef[]>(
 		() => [
 			{
@@ -123,7 +128,7 @@ function Rail({
 					return {
 						id: chat.id,
 						label: chat.name,
-						media: <ChatAvatar seed={chat.avatar} className="size-6" />,
+						media: <GroupChatAvatar seeds={chat.avatars} className="size-6" />,
 						active: pathname === href,
 						onRun: () => router.push(href),
 					};
@@ -232,12 +237,15 @@ function Rail({
 								<Plus />
 								Create new bot
 							</DropdownMenuItem>
-							<DropdownMenuItem disabled className="gap-2.5 rounded-xl px-2.5 py-2">
+							<DropdownMenuItem
+								className="gap-2.5 rounded-xl px-2.5 py-2"
+								onClick={() => {
+									setGroupOrigin(createRef.current?.getBoundingClientRect() ?? null);
+									setGroupOpen(true);
+								}}
+							>
 								<UsersRound />
 								Create group chat
-								<span className="ml-auto font-mono text-[10.5px] text-ink-3">
-									soon
-								</span>
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -246,6 +254,12 @@ function Rail({
 						open={botOpen}
 						onOpenChange={setBotOpen}
 						origin={botOrigin}
+					/>
+					<GroupChatDialogPanel
+						open={groupOpen}
+						onOpenChange={setGroupOpen}
+						origin={groupOrigin}
+						bots={bots}
 					/>
 					<CommandPalette
 						open={searchOpen}
@@ -497,7 +511,7 @@ function ChatList({
 							</motion.span>
 						)}
 						<span className="grid size-11 shrink-0 place-items-center">
-							<ChatAvatar seed={chat.avatar} className="size-9" />
+							<GroupChatAvatar seeds={chat.avatars} className="size-9" />
 						</span>
 						<span
 							className={cn(

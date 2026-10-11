@@ -1,6 +1,6 @@
 import { createInsertSchema } from "drizzle-zod";
-import type { z } from "zod";
-import { bots } from "./schema";
+import { z } from "zod";
+import { bots, chats } from "./schema";
 
 export const INSTRUCTIONS_MAX = 2000;
 
@@ -21,3 +21,22 @@ export const botSchema = insertBotSchema.pick({
 });
 
 export type BotInput = z.input<typeof botSchema>;
+
+export const GROUP_BOTS_MIN = 2;
+
+const chatName = (s: z.ZodString) =>
+  s.trim().min(1, "Give the group a name.").max(40, "Keep the name under 40 characters.");
+
+/** Every insertable chat column, with the limits the group form enforces. */
+export const insertChatSchema = createInsertSchema(chats, { name: chatName });
+
+/** A new group: its name and members. Kind, owner and ids are set on the server. */
+export const groupChatSchema = insertChatSchema
+  .pick({ name: true })
+  .extend({
+    // The column is nullable for direct chats; a group always has a name.
+    name: chatName(z.string()),
+    botIds: z.array(z.string()).min(GROUP_BOTS_MIN, `Pick at least ${GROUP_BOTS_MIN} bots.`),
+  });
+
+export type GroupChatInput = z.input<typeof groupChatSchema>;
