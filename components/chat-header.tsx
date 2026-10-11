@@ -1,7 +1,6 @@
-import { Monitor } from "lucide-react";
 import { BotDialog } from "@/components/bot-dialog";
 import { ChatAvatar } from "@/components/chat-avatar";
-import { Button } from "@/components/ui/button";
+import { DesktopPanelToggle } from "@/components/desktop-panel";
 import type { ChatDetail } from "@/queries/chats";
 
 /** A chat's header on the canvas: the bot's face and name left (opens its editor), the desktop control right. */
@@ -24,10 +23,7 @@ export function ChatHeader({ chat }: { chat: ChatDetail }) {
           <span className="truncate text-[13px] text-ink-2">{chat.bot.job}</span>
         </span>
       </BotDialog>
-      {/* Not wired yet: the bot's desktop opens here later. */}
-      <Button variant="surface" size="circle" aria-label="Desktop">
-        <Monitor strokeWidth={1.75} />
-      </Button>
+      <DesktopPanelToggle />
     </header>
   );
 }

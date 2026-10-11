@@ -70,6 +70,11 @@ export interface GrowPanelProps {
    */
   autoFocus?: boolean;
   /**
+   * False: Escape and backdrop clicks don't close it, only an explicit close
+   * does. For panels hosting input-hungry content (a remote desktop).
+   */
+  dismissible?: boolean;
+  /**
    * Replaces the backdrop's visual classes. The element itself always renders —
    * pass `bg-transparent` for an invisible click-to-close layer.
    */
@@ -97,6 +102,7 @@ export function GrowPanel({
   radius = 16,
   blurBackdrop = true,
   autoFocus = true,
+  dismissible = true,
   backdropClassName,
   style,
   onAnimationComplete,
@@ -130,7 +136,7 @@ export function GrowPanel({
           return;
         }
         event.preventDefault();
-        onOpenChange(false);
+        if (dismissible) onOpenChange(false);
         return;
       }
       if (event.key !== "Tab") return;
@@ -149,7 +155,7 @@ export function GrowPanel({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onOpenChange]);
+  }, [open, onOpenChange, dismissible]);
 
   useEffect(() => {
     if (!open) return;
@@ -213,7 +219,7 @@ export function GrowPanel({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => onOpenChange(false)}
+              onClick={() => dismissible && onOpenChange(false)}
             />
             <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
               <motion.div
@@ -258,6 +264,8 @@ export interface GrowDialogProps {
   radius?: number;
   blurBackdrop?: boolean;
   autoFocus?: boolean;
+  /** False: only the close button closes it (no Escape, no backdrop click). */
+  dismissible?: boolean;
   /** Force reduced motion (OS preference is honored automatically). */
   reducedMotion?: boolean;
   role?: "dialog" | "alertdialog";
@@ -282,6 +290,7 @@ export default function GrowDialog({
   radius = 16,
   blurBackdrop = true,
   autoFocus = true,
+  dismissible,
   reducedMotion,
   role = "dialog",
 }: GrowDialogProps) {
@@ -300,6 +309,7 @@ export default function GrowDialog({
       radius={radius}
       blurBackdrop={blurBackdrop}
       autoFocus={autoFocus}
+      dismissible={dismissible}
       reducedMotion={reduce}
       role={role}
       aria-label={title}

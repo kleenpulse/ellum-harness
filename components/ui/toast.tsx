@@ -8,6 +8,23 @@ import { Button } from "@/components/ui/button"
 import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const toast = ToastPrimitive.createToastManager()
+// Notes pinned beside an element (or a point, via toastPoint) instead of the corner stack.
+const anchoredToast = ToastPrimitive.createToastManager()
+
+let point: HTMLDivElement | null = null
+
+/** A zero-size element at a viewport point, for anchoring a toast where the pointer is. */
+function toastPoint(x: number, y: number) {
+  if (!point) {
+    point = document.createElement("div")
+    point.setAttribute("aria-hidden", "true")
+    point.style.cssText = "position:fixed;width:0;height:0;pointer-events:none"
+    document.body.appendChild(point)
+  }
+  point.style.left = `${x}px`
+  point.style.top = `${y}px`
+  return point
+}
 
 function ToastProvider({ ...props }: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />
@@ -197,6 +214,47 @@ function ToastList() {
   ))
 }
 
+function AnchoredToastList() {
+  const { toasts } = ToastPrimitive.useToastManager()
+
+  return toasts.map((toastItem) => (
+    <ToastPrimitive.Positioner
+      key={toastItem.id}
+      toast={toastItem}
+      sideOffset={12}
+      collisionPadding={12}
+      className="z-50"
+    >
+      <ToastPrimitive.Root
+        toast={toastItem}
+        data-slot="anchored-toast"
+        className="pointer-events-auto flex max-w-xs items-start gap-2.5 rounded-2xl border bg-popover px-3.5 py-3 text-popover-foreground shadow-lift outline-none transition-[opacity,scale] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 dark:border-glass-border"
+      >
+        <span className="mt-0.5">
+          <ToastIcon type={toastItem.type} />
+        </span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <ToastTitle />
+          <ToastDescription />
+        </div>
+      </ToastPrimitive.Root>
+    </ToastPrimitive.Positioner>
+  ))
+}
+
+/** Renders `anchoredToast` notes; mount once, beside `Toaster`. */
+function AnchoredToaster() {
+  return (
+    <ToastProvider toastManager={anchoredToast} timeout={3500}>
+      <ToastPortal>
+        <ToastPrimitive.Viewport data-slot="anchored-toast-viewport" className="outline-none">
+          <AnchoredToastList />
+        </ToastPrimitive.Viewport>
+      </ToastPortal>
+    </ToastProvider>
+  )
+}
+
 function Toaster({
   children,
   toastManager = toast,
@@ -218,6 +276,9 @@ const createToastManager = ToastPrimitive.createToastManager
 const useToastManager = ToastPrimitive.useToastManager
 
 export {
+  AnchoredToaster,
+  anchoredToast,
+  toastPoint,
   Toaster,
   Toast,
   ToastAction,

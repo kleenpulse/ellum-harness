@@ -5,7 +5,7 @@ import { Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
 import { OfflineBanner } from "@/components/offline-banner";
 import { RouteProgress } from "@/components/providers/route-progress";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/toast";
+import { AnchoredToaster, Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { RAIL_PREPAINT } from "@/lib/shell/rail";
 import "./globals.css";
@@ -56,6 +56,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 									<OfflineBanner />
 									<div className="root flex flex-1 flex-col">{children}</div>
 								</Toaster>
+								<AnchoredToaster />
 							</TooltipProvider>
 						</RouteProgress>
 					</ThemeProvider>

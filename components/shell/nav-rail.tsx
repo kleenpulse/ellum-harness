@@ -34,10 +34,11 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { anchoredToast, toastPoint } from "@/components/ui/toast";
 import { Tip, TooltipGroup } from "@/components/ui/tooltip";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { SPRING_DETENT } from "@/lib/motion";
-import { railCookie } from "@/lib/shell/rail";
+import { railLock, readRail, subscribeRail, writeRail } from "@/lib/shell/rail-store";
 import { cn } from "@/lib/utils";
 import type { ChatListItem } from "@/queries/chats";
 import { EllumMark } from "./ellum-mark";
@@ -59,21 +60,6 @@ import { ThemeToggle } from "./theme-toggle";
   (tooltips, aria, menu side) and must never pick classes or mount/unmount
   markup, or the fallback rail and the streamed one would differ.
 */
-
-// The source of truth is the attribute; this store lets React read and change it.
-const railListeners = new Set<() => void>();
-function subscribeRail(listener: () => void) {
-	railListeners.add(listener);
-	return () => {
-		railListeners.delete(listener);
-	};
-}
-const readRail = () => document.documentElement.dataset.rail === "open";
-function writeRail(open: boolean) {
-	document.documentElement.dataset.rail = open ? "open" : "closed";
-	document.cookie = railCookie(open);
-	for (const listener of railListeners) listener();
-}
 
 /** Labels: present for screen readers always, visible only when expanded. */
 const reveal =
@@ -147,7 +133,25 @@ function Rail({
 		[chats, pathname, router],
 	);
 
-	const toggle = useCallback(() => writeRail(!readRail()), []);
+	const expandRef = useRef<HTMLButtonElement>(null);
+	const toggle = useCallback((event?: React.MouseEvent) => {
+		const lock = railLock();
+		if (lock) {
+			// At the pointer for a click; a keyboard (`[`, or Enter, which reports detail 0) gets the Expand row.
+			const anchor =
+				event && event.detail > 0 ? toastPoint(event.clientX, event.clientY) : expandRef.current;
+			// A fixed id: repeat presses move and refresh the one note instead of stacking.
+			anchoredToast.add({
+				id: "rail-locked",
+				type: "info",
+				title: "The sidebar stays collapsed here",
+				description: lock,
+				positionerProps: { anchor, side: "right" },
+			});
+			return;
+		}
+		writeRail(!readRail());
+	}, []);
 
 	// `[` toggles the rail, the way editors bind their sidebars.
 	useEffect(() => {
@@ -279,6 +283,7 @@ function Rail({
 							disabled={expanded}
 							render={
 								<button
+									ref={expandRef}
 									type="button"
 									onClick={toggle}
 									aria-expanded={expanded}
