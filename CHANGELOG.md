@@ -11,6 +11,8 @@ as you work. It ships inside the app.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
 ### Added
 
 - Settings is rebuilt. Appearance now has the theme (System, Light or Dark), a Reduced motion option, whether the side rail stays open, and the Bots layout, with one button to reset them all.
