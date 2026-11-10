@@ -142,7 +142,10 @@ export function WhatsNew({ releases, children }: { releases: ChangelogRelease[];
 				</DialogContent>
 			</Dialog>
 
-			<HashDialogSync />
+			{/* usePathname suspends while prerendering dynamic routes like /c/[chatId]. */}
+			<React.Suspense fallback={null}>
+				<HashDialogSync />
+			</React.Suspense>
 		</ReleasesContext>
 	);
 }

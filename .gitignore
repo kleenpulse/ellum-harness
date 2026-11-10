@@ -47,3 +47,6 @@ next-env.d.ts
 
 # trigger.dev
 .trigger
+
+# netlify
+.netlify
