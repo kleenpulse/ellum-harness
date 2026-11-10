@@ -31,6 +31,7 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import type { chatAgent } from "@/trigger/chat";
+import { cn } from "@/lib/utils";
 import type { ChatUIMessage } from "@/trigger/sandbox-tools";
 
 type ChatBot = { id: string; name: string; avatar: string };
@@ -74,33 +75,48 @@ function ChatView({
     resume: initialMessages.length > 0,
   });
 
+  // A reply comes from the bot its user message was sent to.
+  const repliedBy = new Map<string, ChatBot>();
+  if (bots) {
+    let current: ChatBot | undefined;
+    for (const message of messages) {
+      if (message.role === "user") current = bots.find((b) => b.id === message.metadata?.botId);
+      else if (current) repliedBy.set(message.id, current);
+    }
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Conversation className="flex-1">
         <ConversationContent>
-          {messages.map((message, m) => (
-            <Message from={message.role} key={message.id}>
-              {bots && message.role === "user" && <SentTo bot={bots.find((b) => b.id === message.metadata?.botId)} />}
-              <MessageContent>
-                {message.parts.map((part, i) => {
-                  const key = `${message.id}-${i}`;
-                  if (part.type === "text") return <MessageResponse key={key}>{part.text}</MessageResponse>;
-                  if (part.type === "reasoning") {
-                    const live =
-                      status === "streaming" && m === messages.length - 1 && i === message.parts.length - 1;
-                    return (
-                      <Reasoning key={key} isStreaming={live}>
-                        <ReasoningTrigger />
-                        <ReasoningContent>{part.text}</ReasoningContent>
-                      </Reasoning>
-                    );
-                  }
-                  if (isToolPart(part)) return <ChatTool key={key} part={part} />;
-                  return null;
-                })}
-              </MessageContent>
-            </Message>
-          ))}
+          {messages.map((message, m) => {
+            const author = repliedBy.get(message.id);
+            return (
+              <Message from={message.role} key={message.id} className={cn(author && "flex-row items-start gap-3")}>
+                {bots && message.role === "user" && <SentTo bot={bots.find((b) => b.id === message.metadata?.botId)} />}
+                {/* Groups: the bot that wrote the reply, beside it. */}
+                {author && <ChatAvatar seed={author.avatar} className="size-7" />}
+                <MessageContent className={cn(author && "min-w-0 flex-1 pt-1")}>
+                  {message.parts.map((part, i) => {
+                    const key = `${message.id}-${i}`;
+                    if (part.type === "text") return <MessageResponse key={key}>{part.text}</MessageResponse>;
+                    if (part.type === "reasoning") {
+                      const live =
+                        status === "streaming" && m === messages.length - 1 && i === message.parts.length - 1;
+                      return (
+                        <Reasoning key={key} isStreaming={live}>
+                          <ReasoningTrigger />
+                          <ReasoningContent>{part.text}</ReasoningContent>
+                        </Reasoning>
+                      );
+                    }
+                    if (isToolPart(part)) return <ChatTool key={key} part={part} />;
+                    return null;
+                  })}
+                </MessageContent>
+              </Message>
+            );
+          })}
           {error && (
             <Alert variant="destructive">
               <CircleAlertIcon />

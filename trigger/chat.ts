@@ -8,6 +8,7 @@ import { getRunningSandbox } from "@/lib/daytona/client";
 import { db } from "@/lib/db/client";
 import { bots, chatMembers, chats } from "@/lib/db/schema";
 import { chatModel } from "./model";
+import { attributeGroupHistory, recipients } from "./group-history";
 import { createSandboxTools, hoistScreenshots, type ChatUIMessage } from "./sandbox-tools";
 
 export const botSystemPrompt = prompts.define({
@@ -18,6 +19,7 @@ export const botSystemPrompt = prompts.define({
     job: z.string(),
     instructions: z.string().optional(),
     sandbox: z.string().optional(),
+    group: z.string().optional(),
   }),
   content: `You are {{name}}, a bot on Ellum. The person you're talking to created you and owns you.
 
@@ -46,6 +48,12 @@ Your tools act on this computer: a shell, its files, its mouse and keyboard, and
 - viewScreen is for you; the user doesn't see it. Use showScreen only when the user asks to see your screen or what's on it.
 - When a step fails, read the error, adjust and try a different way rather than repeating the same call.
 {{/sandbox}}
+{{#group}}
+
+## This is a group chat
+
+Your owner is talking with several bots here: you and {{group}}. Each message goes to one bot, and this one is for you. Earlier messages marked as another bot's reply are theirs, not yours: never repeat their name, job or claims as your own. Answer only as {{name}}.
+{{/group}}
 
 ## How you talk
 
@@ -81,6 +89,16 @@ async function botForChat(chatId: string, botId?: string) {
   return row;
 }
 
+/** A group's bots, id → name. */
+async function memberNames(chatId: string) {
+  const rows = await db
+    .select({ id: bots.id, name: bots.name })
+    .from(chatMembers)
+    .innerJoin(bots, eq(bots.id, chatMembers.botId))
+    .where(eq(chatMembers.chatId, chatId));
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
 // No `storage`: the platform's default transcript storage keeps each conversation, keyed by chatId.
 export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   id: "chat",
@@ -107,14 +125,24 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   // Every turn, not onChatStart: that skips continuation runs, and a bot
   // edited mid-chat should answer as its new self on the next message.
   onTurnStart: async ({ chatId, clientData }) => {
-    const bot = await botForChat(chatId, clientData?.botId);
+    const botId = clientData?.botId;
+    const [bot, names] = await Promise.all([botForChat(chatId, botId), botId ? memberNames(chatId) : undefined]);
+    const others = [...(names?.entries() ?? [])].filter(([id]) => id !== botId).map(([, name]) => name);
     const resolved = await botSystemPrompt.resolve({
       name: bot.name,
       job: bot.job,
       instructions: bot.instructions ?? undefined,
       sandbox: bot.sandboxId ?? undefined,
+      group: others.length ? others.join(", ") : undefined,
     });
     chat.prompt.set(resolved);
+  },
+  // Groups: every bot's replies sit in one history; attribute them so the
+  // answering bot doesn't read another bot's words as its own.
+  prepareMessages: async ({ messages, chatId, clientData }) => {
+    const botId = clientData?.botId;
+    if (!botId) return messages;
+    return attributeGroupHistory(messages, recipients(chat.history.all()), botId, await memberNames(chatId));
   },
   run: async ({ messages, tools, signal, streamText }) =>
     streamText({
