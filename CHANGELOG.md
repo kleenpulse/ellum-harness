@@ -13,6 +13,8 @@ as you work. It ships inside the app.
 
 ### Added
 
+- Click a group chat's name at the top of the chat to edit it. Rename
+  the group, add or remove bots, or delete the group.
 - Bots now remember what you tell them. Something you said in a private
   chat with a bot is still there when you talk to it in a group chat.
 - Messages have copy, edit and retry buttons. Edit one of your messages

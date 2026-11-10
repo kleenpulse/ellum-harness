@@ -5,18 +5,19 @@ import { DesktopPanel, DesktopPanelHandle, DesktopPanelProvider } from "@/compon
 import { PAGE_COLUMN } from "@/components/shell/page-frame";
 import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
+import { getBots, type BotListItem } from "@/queries/bots";
 import { getChat, type ChatDetail } from "@/queries/chats";
 
 export default async function ChatPage({ params }: PageProps<"/c/[chatId]">) {
   const { chatId } = await params;
-  const chat = await getChat(chatId);
+  const [chat, bots] = await Promise.all([getChat(chatId), getBots()]);
   if (!chat) notFound();
 
   // Groups have no single bot computer to show, so no desktop panel.
   if (chat.kind === "group") {
     return (
       <div className="flex h-svh flex-col">
-        <ChatColumn chat={chat} />
+        <ChatColumn chat={chat} bots={bots} />
       </div>
     );
   }
@@ -28,7 +29,7 @@ export default async function ChatPage({ params }: PageProps<"/c/[chatId]">) {
       <div className="h-svh">
         <ResizablePanelGroup>
           <ResizablePanel id="chat" minSize="30" className="flex flex-col">
-            <ChatColumn chat={chat} />
+            <ChatColumn chat={chat} bots={bots} />
           </ResizablePanel>
           <DesktopPanelHandle />
           <DesktopPanel botName={chat.bots[0].name} />
@@ -38,11 +39,11 @@ export default async function ChatPage({ params }: PageProps<"/c/[chatId]">) {
   );
 }
 
-function ChatColumn({ chat }: { chat: ChatDetail }) {
+function ChatColumn({ chat, bots }: { chat: ChatDetail; bots: BotListItem[] }) {
   return (
     <>
       <div className={cn(PAGE_COLUMN, "py-6")}>
-        <ChatHeader chat={chat} />
+        <ChatHeader chat={chat} bots={bots} />
       </div>
       <div className="flex min-h-0 flex-1 flex-col rounded-t-frame bg-sheet dark:border-t dark:border-glass-border">
         <div className={cn(PAGE_COLUMN, "flex min-h-0 flex-1 flex-col py-6")}>
