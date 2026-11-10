@@ -1,5 +1,6 @@
 import { animate } from "motion";
 import { flushSync } from "react-dom";
+import { motionReduced } from "./motion-pref";
 
 /*
   Shadow Garden's theme reveal: the new theme wipes in as a circle growing from
@@ -55,7 +56,7 @@ export function runThemeTransition({
 	/** Applies the new theme synchronously, so the View Transition snapshot has it. */
 	applyTheme: () => void;
 }) {
-	if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+	if (motionReduced()) {
 		applyTheme();
 		return;
 	}

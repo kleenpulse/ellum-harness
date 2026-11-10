@@ -13,12 +13,12 @@ import {
   AnimatePresence,
   MotionConfig,
   motion,
-  useReducedMotion,
   type Transition,
 } from "motion/react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useReducedMotionPref } from "@/lib/use-reduced-motion";
 import { cn } from "@/lib/utils";
 
 // Source: shadow-garden components/registry/grow-dialog, restyled onto Ellum tokens.
@@ -294,7 +294,7 @@ export default function GrowDialog({
   reducedMotion,
   role = "dialog",
 }: GrowDialogProps) {
-  const osReduce = useReducedMotion();
+  const osReduce = useReducedMotionPref();
   const reduce = Boolean(osReduce) || Boolean(reducedMotion);
   const descId = useId();
 

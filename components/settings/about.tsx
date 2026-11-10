@@ -5,6 +5,9 @@ import { requestChangelogOpen } from "@/components/whats-new/store";
 import { EntryList, useReleases } from "@/components/whats-new/whats-new";
 import { APP_VERSION } from "@/lib/changelog/seen";
 
+/** Entries of the latest release shown here; the rest are in the full changelog. */
+const SHOWN = 4;
+
 export function About() {
   const latest = useReleases()[0];
 
@@ -22,9 +25,9 @@ export function About() {
             What&apos;s new in v{latest.version}
             {latest.date && <span className="readout">{latest.date}</span>}
           </h3>
-          <EntryList entries={latest.entries} />
+          <EntryList entries={latest.entries.slice(0, SHOWN)} />
           <Button variant="surface" size="pill-sm" className="w-fit" onClick={() => requestChangelogOpen()}>
-            Full changelog
+            {latest.entries.length > SHOWN ? `All ${latest.entries.length} changes` : "Full changelog"}
           </Button>
         </div>
       ) : (

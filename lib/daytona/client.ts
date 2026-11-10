@@ -52,11 +52,39 @@ export async function deleteSandbox(sandboxId: string): Promise<void> {
   }
 }
 
+/**
+ * Deletes every sandbox labelled as this user's, including any a failed
+ * deletion stranded earlier. Returns how many could not be removed.
+ */
+export async function deleteUserSandboxes(userId: string): Promise<number> {
+  const sandboxes: Sandbox[] = [];
+  for await (const sandbox of daytona().list({ labels: { app: "ellum", userId } })) sandboxes.push(sandbox);
+  const results = await Promise.allSettled(sandboxes.map((sandbox) => daytona().delete(sandbox)));
+  let failed = 0;
+  for (const result of results) {
+    if (result.status === "fulfilled" || result.reason instanceof DaytonaNotFoundError) continue;
+    failed += 1;
+    console.error("Sandbox deletion failed", result.reason);
+  }
+  return failed;
+}
+
 /** The sandbox, started if it auto-stopped while idle. */
 export async function getRunningSandbox(sandboxId: string): Promise<Sandbox> {
   const sandbox = await daytona().get(sandboxId);
   if (sandbox.state !== "started") await sandbox.start();
   return sandbox;
+}
+
+export type SandboxState = NonNullable<Sandbox["state"]>;
+
+/** Every sandbox of the user's bots and its state right now. Read-only: never wakes one. */
+export async function listSandboxStates(userId: string): Promise<Map<string, SandboxState>> {
+  const states = new Map<string, SandboxState>();
+  for await (const sandbox of daytona().list({ labels: { app: "ellum", userId } })) {
+    states.set(sandbox.id, sandbox.state ?? "unknown");
+  }
+  return states;
 }
 
 /** Starts the desktop (Xvfb, xfce4, VNC) unless it's already up. Takes ~10s cold. */

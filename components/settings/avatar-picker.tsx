@@ -5,11 +5,11 @@ import { Check, Shuffle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { StatusPill } from "@/components/ui/status-pill";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-
-// Mirrors AVATAR_SEED_KEY in lib/avatar.ts (server-only, so not importable here).
-const KEY = "avatarSeed";
+import { saveAvatarSeed } from "./avatar-seed";
 
 export function AvatarPicker({
   preferred,
@@ -20,18 +20,33 @@ export function AvatarPicker({
 }) {
   const { user } = useUser();
   const router = useRouter();
-  const [chosen, setChosen] = useState(preferred);
   const [pending, startTransition] = useTransition();
 
+  // Shown at once on a click; the saved value wins whenever the server sends a
+  // new one (a save landing, Reset to defaults, another tab).
+  const [chosen, setChosen] = useState(preferred);
+  const [saved, setSaved] = useState(preferred);
+  if (preferred !== saved) {
+    setSaved(preferred);
+    setChosen(preferred);
+  }
+
   function save(seed: string | null) {
-    if (!user) return;
+    if (!user || seed === chosen) return;
     setChosen(seed);
     startTransition(async () => {
-      // update() replaces unsafeMetadata wholesale: carry the other keys over.
-      const metadata = { ...user.unsafeMetadata };
-      if (seed) metadata[KEY] = seed;
-      else delete metadata[KEY];
-      await user.update({ unsafeMetadata: metadata });
+      try {
+        await saveAvatarSeed(user, seed);
+      } catch (error) {
+        console.error("Couldn't save the avatar", error);
+        setChosen(preferred);
+        toast.add({
+          type: "error",
+          title: "Couldn't save your avatar",
+          description: "Check your connection and try again.",
+        });
+        return;
+      }
       router.refresh();
     });
   }
@@ -54,6 +69,7 @@ export function AvatarPicker({
                 active && "bg-signal-soft ring-2 ring-signal dark:ring-signal",
               )}
             >
+              {/* Generated locally by DiceBear from a seed: trusted markup. */}
               <span aria-hidden className="size-3/5 [&_svg]:size-full" dangerouslySetInnerHTML={{ __html: svg }} />
               {active && (
                 <span className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-signal text-primary-foreground">
@@ -66,19 +82,21 @@ export function AvatarPicker({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        {chosen ? (
-          <StatusPill tone="ok">Preferred avatar set</StatusPill>
-        ) : (
-          <StatusPill tone="idle">New face every visit</StatusPill>
-        )}
-        <div className="ml-auto flex items-center gap-2">
+        <span aria-live="polite" className="flex">
+          {chosen ? (
+            <StatusPill tone="ok">Preferred avatar set</StatusPill>
+          ) : (
+            <StatusPill tone="idle">New face every visit</StatusPill>
+          )}
+        </span>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <Button
             size="pill-sm"
             variant="ghost"
             disabled={pending}
             onClick={() => startTransition(() => router.refresh())}
           >
-            <Shuffle data-icon="inline-start" />
+            {pending ? <Spinner data-icon="inline-start" /> : <Shuffle data-icon="inline-start" />}
             Shuffle
           </Button>
           {chosen ? (

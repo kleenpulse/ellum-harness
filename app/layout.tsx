@@ -2,11 +2,13 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Sans, Figtree } from "next/font/google";
+import { MotionProvider } from "@/components/motion-provider";
 import { OfflineBanner } from "@/components/offline-banner";
 import { RouteProgress } from "@/components/providers/route-progress";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AnchoredToaster, Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { MOTION_PREPAINT } from "@/lib/motion-pref";
 import { RAIL_PREPAINT } from "@/lib/shell/rail";
 import "./globals.css";
 
@@ -49,8 +51,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 			suppressHydrationWarning
 		>
 			<body className="min-h-full flex flex-col">
-				{/* Before anything paints: the rail's persisted width (see RAIL_PREPAINT). */}
-				<script dangerouslySetInnerHTML={{ __html: RAIL_PREPAINT }} />
+				{/* Before anything paints: the rail's persisted width and the motion preference. */}
+				<script dangerouslySetInnerHTML={{ __html: RAIL_PREPAINT + MOTION_PREPAINT }} />
 				<ClerkProvider appearance={{ theme: shadcn }}>
 					<ThemeProvider
 						attribute="class"
@@ -58,15 +60,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 						enableSystem
 						disableTransitionOnChange
 					>
-						<RouteProgress>
-							<TooltipProvider>
-								<Toaster>
-									<OfflineBanner />
-									<div className="root flex flex-1 flex-col">{children}</div>
-								</Toaster>
-								<AnchoredToaster />
-							</TooltipProvider>
-						</RouteProgress>
+						<MotionProvider>
+							<RouteProgress>
+								<TooltipProvider>
+									<Toaster>
+										<OfflineBanner />
+										<div className="root flex flex-1 flex-col">{children}</div>
+									</Toaster>
+									<AnchoredToaster />
+								</TooltipProvider>
+							</RouteProgress>
+						</MotionProvider>
 					</ThemeProvider>
 				</ClerkProvider>
 			</body>

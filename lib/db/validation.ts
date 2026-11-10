@@ -40,3 +40,16 @@ export const groupChatSchema = insertChatSchema
   });
 
 export type GroupChatInput = z.input<typeof groupChatSchema>;
+
+/** What the user types to confirm deleting everything they made. */
+export const DELETE_CONFIRM = "DELETE";
+
+/** No table behind this one: it only guards the "delete all my data" action. */
+export const deleteAllSchema = z.object({
+  confirm: z
+    .string()
+    .trim()
+    .refine((value) => value === DELETE_CONFIRM, `Type ${DELETE_CONFIRM} to confirm.`),
+});
+
+export type DeleteAllInput = z.input<typeof deleteAllSchema>;

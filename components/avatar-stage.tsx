@@ -1,7 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
+import { motion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { useEffect, useRef } from "react";
+import { useReducedMotionPref } from "@/lib/use-reduced-motion";
 import { cn } from "@/lib/utils";
 
 const FOLLOW = { stiffness: 140, damping: 18, mass: 0.6 };
@@ -18,7 +19,7 @@ function useDepth(v: MotionValue<number>, depth: number) {
  */
 export function AvatarStage({ svg, className }: { svg: string; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const reduced = useReducedMotion();
+  const reduced = useReducedMotionPref();
   // -1…1 on each axis: the pointer's direction from the stage, eased by distance
   const x = useSpring(0, FOLLOW);
   const y = useSpring(0, FOLLOW);

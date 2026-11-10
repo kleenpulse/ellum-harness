@@ -304,6 +304,14 @@
 	color-scheme: dark;
 }
 
+/* Clerk paints its surfaces with --card (its shadcn theme), which is translucent
+   glass in Night. Its drawers (checkout) and modals (account) float over the
+   page, so there the card must be opaque or the page shows through the text. */
+.dark .cl-drawerRoot,
+.dark .cl-modalBackdrop {
+	--card: var(--popover);
+}
+
 @media (prefers-reduced-transparency: reduce) {
 	.dark {
 		--sheet: #050b1a;
@@ -497,6 +505,9 @@
 	@media (prefers-reduced-motion: reduce) {
 		animation-delay: 0ms;
 	}
+	:where([data-motion-pref="reduce"]) & {
+		animation-delay: 0ms;
+	}
 }
 
 /* Gaze avatar (AvatarStage): the eyes follow --gx/--gy (-1…1, set from the
@@ -533,4 +544,15 @@
 		transition-duration: 0.01ms !important;
 		scroll-behavior: auto !important;
 	}
+}
+
+/* The same cut when the user picks "Reduced" in Settings: <html data-motion-pref="reduce">,
+   set before paint (lib/motion-pref.ts). Keep the two blocks identical. */
+[data-motion-pref="reduce"] *,
+[data-motion-pref="reduce"] *::before,
+[data-motion-pref="reduce"] *::after {
+	animation-duration: 0.01ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.01ms !important;
+	scroll-behavior: auto !important;
 }

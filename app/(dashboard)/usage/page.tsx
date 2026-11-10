@@ -5,19 +5,11 @@ import { Bento, BentoTitle, StatStrip, StatTile } from "@/components/ui/bento";
 import { PageFrame } from "@/components/shell/page-frame";
 import { ResetCountdown } from "@/components/usage/reset-countdown";
 import { UsageMeter } from "@/components/usage/usage-meter";
+import { formatHours as hours, formatTokens as tokens, formatWhole as whole } from "@/lib/usage-format";
 import { MAX_BOTS, PRO_LIMITS } from "@/lib/usage-limits";
 import { getMyAllowance } from "@/queries/usage";
 
 export const metadata: Metadata = { title: "Usage" };
-
-const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
-const tokens = (n: number) => compact.format(n);
-const hours = (seconds: number) => {
-  if (seconds > 0 && seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} min`;
-  const h = seconds / 3600;
-  return `${h < 10 ? h.toFixed(1).replace(/\.0$/, "") : Math.round(h)} h`;
-};
-const whole = (n: number) => String(n);
 
 // Reached from the account menu, not the rail.
 export default async function UsagePage() {

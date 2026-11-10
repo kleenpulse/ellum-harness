@@ -1,13 +1,14 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useOffline } from "next/offline";
 import { SPRING_POP } from "@/lib/motion";
+import { useReducedMotionPref } from "@/lib/use-reduced-motion";
 
 /** Floating glass pill while the app is offline; Next retries pending requests on reconnect. */
 export function OfflineBanner() {
   const isOffline = useOffline();
-  const reduce = useReducedMotion();
+  const reduce = useReducedMotionPref();
 
   return (
     <div role="status" className="pointer-events-none fixed inset-x-3 top-3 z-50 flex justify-center">

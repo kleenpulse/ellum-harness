@@ -79,6 +79,21 @@ export const usageEvents = pgTable(
   (t) => [index("usage_events_user_metric_created_idx").on(t.userId, t.metric, t.createdAt)],
 );
 
+// One row per chat turn a bot answered. Refused turns aren't recorded. Ids are
+// references only, so the overview's history outlives a deleted bot or chat.
+export const turns = pgTable(
+  "turns",
+  {
+    id: text("id").primaryKey().$defaultFn(() => nanoid()),
+    // Clerk user id.
+    userId: text("user_id").notNull(),
+    botId: text("bot_id").notNull(),
+    chatId: text("chat_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("turns_user_created_idx").on(t.userId, t.createdAt)],
+);
+
 export const botsRelations = relations(bots, ({ many }) => ({
   memberships: many(chatMembers),
 }));

@@ -81,7 +81,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.keyboard.press(press);
         await page.waitForTimeout(400);
       }
-      const file = join(out, `${route === "/" ? "home" : route.replace(/^\/|\/$/g, "").replace(/\//g, "_")}-${theme}-${device}.png`);
+      const file = join(out, `${route === "/" ? "home" : route.replace(/^\/|\/$/g, "").replace(/[\/?&=]/g, "_")}-${theme}-${device}.png`);
       await page.screenshot({ path: file, fullPage: true });
       console.log(file);
     }

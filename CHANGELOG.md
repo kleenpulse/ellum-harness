@@ -13,6 +13,21 @@ as you work. It ships inside the app.
 
 ### Added
 
+- Settings is rebuilt. Appearance now has the theme (System, Light or Dark), a Reduced motion option, whether the side rail stays open, and the Bots layout, with one button to reset them all.
+- Settings shows your account, with Manage account and Sign out, and your plan with how much of this period's allowance is used.
+- Settings has a Danger zone where you can delete all your bots and chats at once. It asks you to type DELETE first, and it doesn't change your plan or give back any usage.
+- Bots page: switch between a list and cards, search your bots by name or job, and page through them. Your choice of view is remembered.
+- The Overview now shows real numbers. Runs this week counts every
+  time a bot answered you, compares it with the week before and draws
+  a bar for each of the last 7 days. The sample figures are gone.
+- Each bot shows whether its sandbox is awake, asleep or starting,
+  checked live, on the Overview and on the Bots page. Checking never
+  wakes a sandbox.
+- A "Needs attention" list on the Overview points out a sandbox that
+  has a fault or is missing, and an allowance that is nearly used up.
+- The Overview lists your recent chats, and clicking a bot there or
+  on the Bots page opens its chat.
+
 - Links to pages that don't exist now land on a proper "not found"
   screen with a way back home, instead of a blank black page.
 - Ellum now has a Pro plan. Creating bots, chatting with them and
@@ -35,6 +50,10 @@ as you work. It ships inside the app.
 
 ### Fixed
 
+- The plans no longer stay open behind the checkout panel: they close when checkout opens. In the dark theme the checkout panel is now solid, so the page no longer shows through it.
+- Avatar picker: a failed save now tells you and goes back to your last choice, and the grid no longer ends on an empty space.
+- Chats now sort by their latest message and show a line of the last
+  reply. Before, the time next to a chat was when it was created.
 - Chats with a single bot no longer stop with an error before the bot
   replies.
 - Bots no longer get stuck repeating the same step during longer tasks.

@@ -114,6 +114,8 @@ A new page is a server component that renders `<PageFrame>` with bento cards ins
 - **Avatar seed** (`lib/avatar.ts`, server-only): `getAvatarSeed()` returns the user's preferred seed from Clerk `unsafeMetadata.avatarSeed` (picked in **Settings → Avatar**), otherwise a fresh random seed per request. `components/bots/bots-empty.tsx` is the shared "No bots yet" state that uses it.
 - **`pane-state.tsx`**: `PaneState`, the empty or fault state (two hairline rings, a recessed core, one dot, a title, a body line and an optional action). Pass `media` to replace the rings.
 - **`button.tsx`**: the stock shadcn variants plus `inverse`, `surface` (paper or well button with a ring) and `glass`, and the sizes `pill` (h-10), `pill-sm` (h-8), `circle` (44px) and `circle-sm` (36px). The `primary` + `pill` combination is the page CTA.
+- **`segmented.tsx`**: `Segmented`, one choice out of a few as a pill track (theme, a view, a mode). It is a radio group with arrow keys; `iconOnly` shows icons with tooltip labels; `value` may be `undefined` until the real one is known (the theme before hydration). The active segment uses the active-pill look. Use it instead of `ToggleGroup` or `Tabs` for settings and view switches.
+- **`components/settings/setting-row.tsx`**: `SettingList` (a well that is its own container) and `SettingRow` (title and one help line on the left, the control on the right, stacked when narrow). Every setting on the Settings page is one row.
 - The other 60+ shadcn components (Base UI) are stock and pick up the tokens automatically.
 
 ## Utilities (from `globals.css`)
@@ -146,6 +148,10 @@ A new page is a server component that renders `<PageFrame>` with bento cards ins
   - Pass stagger delays as custom properties (`--i`), never as an inline `animationDelay`.
   - Pair every hover translate with reduced-motion handling. A global `prefers-reduced-motion` clamp is the backstop.
   - Entrances use `backwards` fill, not `both`, because a filled opacity animation breaks `backdrop-filter` in Chrome.
+- **Motion preference** (`lib/motion-pref.ts`, **Settings → Appearance → Motion**): the user can ask for reduced motion on top of the OS setting. It is the cookie `ellum-motion`, mirrored before paint onto `<html data-motion-pref="reduce">`.
+  - CSS: the global clamp in `globals.css` has a second copy under `[data-motion-pref="reduce"]`. Keep the two identical.
+  - React: call `useReducedMotionPref()` (`lib/use-reduced-motion.ts`), never `useReducedMotion()` from `motion/react`, which only knows the OS. `MotionProvider` in the root layout sets `MotionConfig reducedMotion` from the same value.
+  - Plain JS: `motionReduced()`.
 
 ## Theme
 

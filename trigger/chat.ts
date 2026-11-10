@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getRunningSandbox, readMemory } from "@/lib/daytona/client";
 import { db } from "@/lib/db/client";
-import { bots, chatMembers, chats } from "@/lib/db/schema";
+import { bots, chatMembers, chats, turns } from "@/lib/db/schema";
 import { chatModel } from "./model";
 import { attributeGroupHistory, recipients } from "./group-history";
 import { createHandoffTool, endsInHandoff, type GroupMember } from "./handoff";
@@ -81,6 +81,18 @@ const refusal = (budget: Promise<TurnBudget>) =>
       throw error;
     },
   );
+
+// The chat list shows one line of the latest reply.
+const PREVIEW_MAX = 140;
+function replyPreview(message: ChatUIMessage | undefined) {
+  const text = message?.parts
+    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return undefined;
+  return text.length > PREVIEW_MAX ? `${text.slice(0, PREVIEW_MAX - 1)}…` : text;
+}
 
 // No `storage`: the platform's default transcript storage keeps each conversation, keyed by chatId.
 export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
@@ -169,6 +181,12 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
     const names = new Map((await groupMembers(chatId)).map((m) => [m.id, m.name]));
     return attributeGroupHistory(messages, recipients(chat.history.all()), botId, names);
   },
+  // A refused or tool-only turn has no text, and keeps the last preview.
+  onTurnComplete: async ({ chatId, responseMessage }) => {
+    const preview = replyPreview(responseMessage);
+    if (!preview) return;
+    await db.update(chats).set({ lastMessagePreview: preview, lastMessageAt: new Date() }).where(eq(chats.id, chatId));
+  },
   run: async ({ messages, tools, signal, streamText, ctx, chatId, clientData }) => {
     const refused = await refusal(turnBudget(chatId, clientData?.botId));
     if (refused) {
@@ -178,6 +196,11 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
       return;
     }
     const budget = await turnBudget(chatId, clientData?.botId);
+    // The overview counts these rows as runs; the chat moves to the top of the list.
+    await Promise.all([
+      db.insert(turns).values({ userId: budget.userId, botId: budget.botId, chatId }),
+      db.update(chats).set({ lastMessageAt: new Date() }).where(eq(chats.id, chatId)),
+    ]);
     // Runs stay pinned to the worker build they started on, and every save in
     // dev is a new build. Exiting after each turn makes the next message start
     // a run on the current code instead of resuming a stale one.
