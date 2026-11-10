@@ -2,6 +2,7 @@ import type { Sandbox } from "@daytona/sdk";
 import { tool, type InferUITools, type ModelMessage, type ToolResultPart, type UIDataTypes, type UIMessage } from "ai";
 import { z } from "zod";
 import { ensureDesktop } from "@/lib/daytona/client";
+import type { HandoffTool } from "./handoff";
 
 // Keeps one big command or file from flooding the model's context.
 const OUTPUT_MAX = 16_000;
@@ -218,7 +219,11 @@ export function createSandboxTools(sandbox: () => Promise<Sandbox>) {
 export type SandboxTools = ReturnType<typeof createSandboxTools>;
 /** In a group chat, a user message records which bot it was sent to. */
 export type ChatMessageMetadata = { botId?: string };
-export type ChatUIMessage = UIMessage<ChatMessageMetadata, UIDataTypes, InferUITools<SandboxTools>>;
+export type ChatUIMessage = UIMessage<
+  ChatMessageMetadata,
+  UIDataTypes,
+  InferUITools<SandboxTools & { handoff: HandoffTool }>
+>;
 
 // NVIDIA's endpoint rejects images inside tool messages, so each screenshot
 // moves into a user message right after its tool result. Only the newest

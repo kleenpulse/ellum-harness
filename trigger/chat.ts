@@ -1,7 +1,6 @@
-import { prompts } from "@trigger.dev/sdk";
 import { chat } from "@trigger.dev/sdk/ai";
 import type { Sandbox } from "@daytona/sdk";
-import { isStepCount } from "ai";
+import { hasToolCall, isStepCount } from "ai";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getRunningSandbox } from "@/lib/daytona/client";
@@ -9,58 +8,9 @@ import { db } from "@/lib/db/client";
 import { bots, chatMembers, chats } from "@/lib/db/schema";
 import { chatModel } from "./model";
 import { attributeGroupHistory, recipients } from "./group-history";
+import { createHandoffTool, endsInHandoff, type GroupMember } from "./handoff";
+import { botSystemPrompt, roster } from "./prompt";
 import { createSandboxTools, hoistScreenshots, type ChatUIMessage } from "./sandbox-tools";
-
-export const botSystemPrompt = prompts.define({
-  id: "bot-system",
-  description: "Base identity for a user's bot: name, job, instructions and sandbox.",
-  variables: z.object({
-    name: z.string(),
-    job: z.string(),
-    instructions: z.string().optional(),
-    sandbox: z.string().optional(),
-    group: z.string().optional(),
-  }),
-  content: `You are {{name}}, a bot on Ellum. The person you're talking to created you and owns you.
-
-## Your job
-
-{{job}}
-
-This is why you exist. Stay focused on it, and when a request falls outside it, say so plainly and help as far as it reasonably goes.
-{{#instructions}}
-
-## How your owner wants you to work
-
-{{instructions}}
-{{/instructions}}
-{{#sandbox}}
-
-## Your computer
-
-You have your own sandbox: a dedicated, isolated Linux computer that belongs to you alone, separate from your owner's machine and from every other bot. It has a 1024x768 desktop (xfce), Chromium, Python and Node.js, and your home is /home/daytona. It stops itself when idle and comes back with its files intact when you next use it.
-
-Your tools act on this computer: a shell, its files, its mouse and keyboard, and its screen.
-
-- Prefer the shell and files for anything they can do. Reach for the mouse and keyboard only for what needs the GUI.
-- Look before you click: call viewScreen and place the pointer from that screenshot. Mouse positions are on a 0–1000 grid over the screenshot (x left→right, y top→bottom), not pixels. After an action that changes the screen, look again to confirm it worked before moving on.
-- Start GUI apps from the shell in the background, e.g. \`nohup chromium --no-sandbox https://example.com > /tmp/chromium.log 2>&1 &\`, then look at the screen.
-- viewScreen is for you; the user doesn't see it. Use showScreen only when the user asks to see your screen or what's on it.
-- When a step fails, read the error, adjust and try a different way rather than repeating the same call.
-{{/sandbox}}
-{{#group}}
-
-## This is a group chat
-
-Your owner is talking with several bots here: you and {{group}}. Each message goes to one bot, and this one is for you. Earlier messages marked as another bot's reply are theirs, not yours: never repeat their name, job or claims as your own. Answer only as {{name}}.
-{{/group}}
-
-## How you talk
-
-- Be direct and concise. Lead with the answer.
-- Write like a capable colleague, not a customer-service script.
-- Never claim to have done, checked or run something you haven't. If you don't know, say so.`,
-});
 
 /**
  * The bot answering this turn, owner-scoped through the chat row. A direct
@@ -89,14 +39,14 @@ async function botForChat(chatId: string, botId?: string) {
   return row;
 }
 
-/** A group's bots, id → name. */
-async function memberNames(chatId: string) {
-  const rows = await db
-    .select({ id: bots.id, name: bots.name })
+/** A group's bots, in the order they joined. */
+function groupMembers(chatId: string): Promise<GroupMember[]> {
+  return db
+    .select({ id: bots.id, name: bots.name, job: bots.job })
     .from(chatMembers)
     .innerJoin(bots, eq(bots.id, chatMembers.botId))
-    .where(eq(chatMembers.chatId, chatId));
-  return new Map(rows.map((r) => [r.id, r.name]));
+    .where(eq(chatMembers.chatId, chatId))
+    .orderBy(chatMembers.joinedAt);
 }
 
 // No `storage`: the platform's default transcript storage keeps each conversation, keyed by chatId.
@@ -104,11 +54,20 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   id: "chat",
   // Groups pick the bot that answers each turn; sent as per-message metadata.
   clientDataSchema: z.object({ botId: z.string().optional() }),
+  // A handoff runs a turn as the target bot (clientData.botId) on the history
+  // as it stands, without a new user message.
+  actionSchema: z.object({ type: z.literal("handoff") }),
+  onAction: async ({ uiMessages, clientData }) => {
+    const handoff = endsInHandoff(uiMessages.at(-1));
+    if (!handoff || handoff.botId !== clientData?.botId) return;
+    return chat.turn();
+  },
   // Per turn so the sandbox is the chat's bot's. On the config, not only on
   // streamText, so screenshots' toModelOutput survives into later turns.
-  tools: ({ chatId, clientData }) => {
+  tools: async ({ chatId, clientData }) => {
+    const botId = clientData?.botId;
     let pending: Promise<Sandbox> | undefined;
-    return createSandboxTools(() => {
+    const sandboxTools = createSandboxTools(() => {
       pending ??= botForChat(chatId, clientData?.botId)
         .then(({ sandboxId }) => {
           if (!sandboxId) throw new Error("This bot has no sandbox.");
@@ -121,19 +80,23 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
         });
       return pending;
     });
+    if (!botId) return sandboxTools;
+    const handedToMe = () => endsInHandoff(chat.history.all().at(-1))?.botId === botId;
+    return { ...sandboxTools, handoff: createHandoffTool(await groupMembers(chatId), botId, handedToMe) };
   },
   // Every turn, not onChatStart: that skips continuation runs, and a bot
   // edited mid-chat should answer as its new self on the next message.
-  onTurnStart: async ({ chatId, clientData }) => {
+  onTurnStart: async ({ chatId, clientData, uiMessages }) => {
     const botId = clientData?.botId;
-    const [bot, names] = await Promise.all([botForChat(chatId, botId), botId ? memberNames(chatId) : undefined]);
-    const others = [...(names?.entries() ?? [])].filter(([id]) => id !== botId).map(([, name]) => name);
+    const [bot, members] = await Promise.all([botForChat(chatId, botId), botId ? groupMembers(chatId) : undefined]);
+    const handoff = endsInHandoff(uiMessages.at(-1));
     const resolved = await botSystemPrompt.resolve({
       name: bot.name,
       job: bot.job,
       instructions: bot.instructions ?? undefined,
       sandbox: bot.sandboxId ?? undefined,
-      group: others.length ? others.join(", ") : undefined,
+      group: botId && members ? roster(members, botId) || undefined : undefined,
+      handedBy: handoff && handoff.botId === botId ? handoff.from : undefined,
     });
     chat.prompt.set(resolved);
   },
@@ -142,14 +105,16 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   prepareMessages: async ({ messages, chatId, clientData }) => {
     const botId = clientData?.botId;
     if (!botId) return messages;
-    return attributeGroupHistory(messages, recipients(chat.history.all()), botId, await memberNames(chatId));
+    const names = new Map((await groupMembers(chatId)).map((m) => [m.id, m.name]));
+    return attributeGroupHistory(messages, recipients(chat.history.all()), botId, names);
   },
   run: async ({ messages, tools, signal, streamText }) =>
     streamText({
       model: chatModel,
       messages,
       tools,
-      stopWhen: isStepCount(40),
+      // A handoff ends the turn; the target bot answers in the next one.
+      stopWhen: [isStepCount(40), hasToolCall("handoff")],
       prepareStep: ({ messages }) => ({ messages: hoistScreenshots(messages) }),
       abortSignal: signal,
     }),

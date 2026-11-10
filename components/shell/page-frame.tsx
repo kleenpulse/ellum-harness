@@ -36,8 +36,8 @@ export function PageFrame({
       <div className={cn(PAGE_COLUMN, "pt-6", intro ? "pb-10" : "pb-6")}>
         <header className="entrance flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="truncate font-display text-[22px] leading-tight tracking-[-0.01em] text-ink">{title}</h1>
-            {subtitle ? <p className="truncate text-[13px] text-ink-2">{subtitle}</p> : null}
+            <h1 className="truncate font-title text-[32px] font-bold uppercase leading-tight tracking-[-0.03em] text-ink">{title}</h1>
+            {subtitle ? <p className="mt-1 truncate text-[15px] text-ink-2">{subtitle}</p> : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}
         </header>

@@ -1,7 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Instrument_Sans } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Sans, Figtree } from "next/font/google";
 import { OfflineBanner } from "@/components/offline-banner";
 import { RouteProgress } from "@/components/providers/route-progress";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -27,6 +27,14 @@ const instrumentSans = Instrument_Sans({
 	display: "swap",
 });
 
+// page titles (font-title)
+const figtree = Figtree({
+	variable: "--font-figtree",
+	subsets: ["latin"],
+	weight: "700",
+	display: "swap",
+});
+
 export const metadata: Metadata = {
 	title: "EllumHarness",
 	description: "Your bots, each in its own sandbox.",
@@ -36,7 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 	return (
 		<html
 			lang="en"
-			className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} h-full antialiased`}
+			className={`${geistSans.variable} ${geistMono.variable} ${instrumentSans.variable} ${figtree.variable} h-full antialiased`}
 			// next-themes sets the theme class before hydration
 			suppressHydrationWarning
 		>

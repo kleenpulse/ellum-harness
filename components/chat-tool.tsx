@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRightLeftIcon,
   EyeIcon,
   KeyboardIcon,
   MonitorIcon,
@@ -137,6 +138,19 @@ export function ChatTool({ part }: { part: ChatToolPart }) {
 
     case "tool-showScreen":
       return <ScreenShot part={part} />;
+
+    case "tool-handoff":
+      return (
+        <ToolLine
+          part={part}
+          icon={ArrowRightLeftIcon}
+          label={
+            part.state === "output-available"
+              ? `Handed this to ${part.output.name}: ${part.output.reason}`
+              : `Handing this to ${part.input?.to ?? "another bot"}`
+          }
+        />
+      );
 
     default:
       return null;
