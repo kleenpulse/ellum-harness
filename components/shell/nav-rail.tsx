@@ -6,6 +6,7 @@ import {
 	PanelLeftOpen,
 	Plus,
 	Search,
+	Sparkles,
 	UsersRound,
 } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -35,6 +36,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { requestChangelogOpen } from "@/components/whats-new/store";
 import { anchoredToast, toastPoint } from "@/components/ui/toast";
 import { Tip, TooltipGroup } from "@/components/ui/tooltip";
 import { useIsMac } from "@/hooks/use-is-mac";
@@ -370,7 +372,15 @@ function Rail({
 												"static! focus:shadow-none! before:absolute before:inset-0 before:rounded-full before:content-['']",
 										},
 									}}
-								/>
+								>
+									<UserButton.MenuItems>
+										<UserButton.Action
+											label="What's new"
+											labelIcon={<Sparkles className="size-4" />}
+											onClick={requestChangelogOpen}
+										/>
+									</UserButton.MenuItems>
+								</UserButton>
 							</div>
 							<div
 								className={cn(

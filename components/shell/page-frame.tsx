@@ -14,6 +14,17 @@ import { cn } from "@/lib/utils";
 /** Page width cap, net of the 84px rail. */
 export const PAGE_COLUMN = "mx-auto w-full max-w-[calc(1900px-84px)] px-5 md:px-8";
 
+/**
+ * Canvas header title, shared by PageFrame and the chat header. Scales with the
+ * viewport (22px phone → 32px desktop) and wraps to two lines before it
+ * truncates, so long names stay readable on mobile.
+ */
+export const PAGE_TITLE =
+  "line-clamp-2 font-title text-[clamp(1.375rem,1rem+2vw,2rem)] font-bold uppercase leading-[1.05] tracking-[-0.03em] text-balance break-words whitespace-normal text-ink";
+
+/** Subtitle under PAGE_TITLE. */
+export const PAGE_SUBTITLE = "mt-1 truncate text-[13px] text-ink-2 sm:text-[15px]";
+
 export function PageFrame({
   title,
   subtitle,
@@ -36,8 +47,8 @@ export function PageFrame({
       <div className={cn(PAGE_COLUMN, "pt-6", intro ? "pb-10" : "pb-6")}>
         <header className="entrance flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="truncate font-title text-[32px] font-bold uppercase leading-tight tracking-[-0.03em] text-ink">{title}</h1>
-            {subtitle ? <p className="mt-1 truncate text-[15px] text-ink-2">{subtitle}</p> : null}
+            <h1 className={PAGE_TITLE}>{title}</h1>
+            {subtitle ? <p className={PAGE_SUBTITLE}>{subtitle}</p> : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-3">{actions}</div> : null}
         </header>

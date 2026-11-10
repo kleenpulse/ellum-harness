@@ -1,5 +1,9 @@
 @AGENTS.md
 
+## Changelog
+
+- Every user-visible change gets a plain-English entry under `## [Unreleased]` in `CHANGELOG.md`, as you work. It ships inside the app (What's New card, `#changelog`), so write it for users, not developers. Releases are cut only with `bun run bump patch|minor|major`; never edit the version in `package.json` by hand.
+
 <!-- TRIGGER.DEV SKILLS START -->
 
 ## Trigger.dev agent skills

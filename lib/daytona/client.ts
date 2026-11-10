@@ -13,10 +13,32 @@ function daytona() {
   return client;
 }
 
-/** Creates the bot's sandbox and returns its id. Labels tie it back to the bot for orphan sweeps. */
+/** The bot's long-term notes; the system prompt tells it when to read and write them. */
+export const MEMORY_PATH = "/home/daytona/MEMORY.md";
+
+/** Creates the bot's sandbox with a blank MEMORY.md and returns its id. Labels tie it back to the bot for orphan sweeps. */
 export async function createBotSandbox(botId: string, userId: string): Promise<string> {
   const sandbox = await daytona().create({ labels: { app: "ellum", botId, userId } });
+  try {
+    const { exitCode, result } = await sandbox.process.executeCommand(`touch ${MEMORY_PATH}`);
+    if (exitCode !== 0) throw new Error(`Couldn't create ${MEMORY_PATH}: ${result}`);
+  } catch (error) {
+    // The caller never learns this id, so nothing else would delete it.
+    await daytona().delete(sandbox).catch((cleanup) => console.error("Sandbox cleanup failed", cleanup));
+    throw error;
+  }
   return sandbox.id;
+}
+
+/** MEMORY.md's text, or undefined if it couldn't be read (sandbox down, file deleted). */
+export async function readMemory(sandboxId: string): Promise<string | undefined> {
+  try {
+    const sandbox = await getRunningSandbox(sandboxId);
+    return (await sandbox.fs.downloadFile(MEMORY_PATH)).toString("utf8");
+  } catch (error) {
+    console.warn("Couldn't read the bot's memory", error);
+    return undefined;
+  }
 }
 
 /** Deletes a sandbox; one that is already gone counts as deleted. */

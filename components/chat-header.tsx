@@ -1,6 +1,7 @@
 import { BotDialog } from "@/components/bot-dialog";
 import { DesktopPanelToggle } from "@/components/desktop-panel";
 import { GroupChatAvatar } from "@/components/group-chat-avatar";
+import { PAGE_SUBTITLE, PAGE_TITLE } from "@/components/shell/page-frame";
 import { cn } from "@/lib/utils";
 import type { ChatDetail } from "@/queries/chats";
 
@@ -15,12 +16,12 @@ export function ChatHeader({ chat }: { chat: ChatDetail }) {
   const group = chat.kind === "group";
   const title = (
     <>
-      <GroupChatAvatar seeds={chat.bots.map((b) => b.avatar)} className="size-12" />
+      <GroupChatAvatar seeds={chat.bots.map((b) => b.avatar)} className="size-10 shrink-0 sm:size-12" />
       <span className="flex min-w-0 flex-col">
-        <span className="truncate font-title text-[32px] font-bold uppercase leading-tight tracking-[-0.03em] text-ink">
+        <span className={PAGE_TITLE} title={chat.name}>
           {chat.name}
         </span>
-        <span className="mt-1 truncate text-[15px] text-ink-2">
+        <span className={PAGE_SUBTITLE}>
           {group ? chat.bots.map((b) => b.name).join(", ") : bot.job}
         </span>
       </span>

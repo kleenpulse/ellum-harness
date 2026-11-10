@@ -1,5 +1,5 @@
 import type { Sandbox } from "@daytona/sdk";
-import { tool, type InferUITools, type ModelMessage, type ToolResultPart, type UIDataTypes, type UIMessage } from "ai";
+import { tool, type InferUITools, type UIDataTypes, type UIMessage } from "ai";
 import { z } from "zod";
 import { ensureDesktop } from "@/lib/daytona/client";
 import type { HandoffTool } from "./handoff";
@@ -224,35 +224,3 @@ export type ChatUIMessage = UIMessage<
   UIDataTypes,
   InferUITools<SandboxTools & { handoff: HandoffTool }>
 >;
-
-// NVIDIA's endpoint rejects images inside tool messages, so each screenshot
-// moves into a user message right after its tool result. Only the newest
-// one is kept: older screens are stale and would flood the context.
-export function hoistScreenshots(messages: ModelMessage[]): ModelMessage[] {
-  const hasImage = (part: ToolResultPart) =>
-    part.output.type === "content" && part.output.value.some((v) => v.type === "file");
-  const last = messages.findLastIndex(
-    (m) => m.role === "tool" && m.content.some((p) => p.type === "tool-result" && hasImage(p)),
-  );
-
-  return messages.flatMap((message, i): ModelMessage[] => {
-    if (message.role !== "tool") return [message];
-    const images: Extract<ModelMessage, { role: "user" }>["content"] = [];
-    const content = message.content.map((part) => {
-      if (part.type !== "tool-result" || part.output.type !== "content") return part;
-      const text = part.output.value.flatMap((v) => {
-        if (v.type === "file") {
-          if (i === last && typeof images !== "string") images.push(v);
-          return [];
-        }
-        return v.type === "text" ? [v.text] : [];
-      });
-      return { ...part, output: { type: "text" as const, value: text.join("\n") } };
-    });
-    const hoisted: ModelMessage[] = [{ ...message, content }];
-    if (images.length) {
-      hoisted.push({ role: "user", content: [{ type: "text", text: "[The screenshot from your last tool call]" }, ...images] });
-    }
-    return hoisted;
-  });
-}

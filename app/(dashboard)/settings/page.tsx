@@ -1,4 +1,5 @@
 import { gazeSvg } from "@/components/chat-avatar";
+import { About } from "@/components/settings/about";
 import { AvatarPicker } from "@/components/settings/avatar-picker";
 import { Bento, BentoTitle } from "@/components/ui/bento";
 import { PageFrame } from "@/components/shell/page-frame";
@@ -12,7 +13,7 @@ export default async function SettingsPage() {
   const seeds = preferred ? [preferred, ...fresh] : fresh;
 
   return (
-    <PageFrame title="Settings" subtitle="Appearance">
+    <PageFrame title="Settings" subtitle="Appearance and about">
       <Bento className="flex max-w-3xl flex-col gap-5">
         <div className="flex flex-col gap-1">
           <BentoTitle>Avatar</BentoTitle>
@@ -24,6 +25,10 @@ export default async function SettingsPage() {
           preferred={preferred}
           options={seeds.map((seed) => ({ seed, svg: gazeSvg(seed) }))}
         />
+      </Bento>
+      <Bento i={1} className="mt-5 flex max-w-3xl flex-col gap-5">
+        <BentoTitle>About</BentoTitle>
+        <About />
       </Bento>
     </PageFrame>
   );

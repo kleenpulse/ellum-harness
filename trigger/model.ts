@@ -1,5 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import type { LanguageModelV4, LanguageModelV4StreamPart } from "@ai-sdk/provider";
+import type { LanguageModelV4, LanguageModelV4Prompt, LanguageModelV4StreamPart } from "@ai-sdk/provider";
 import { wrapLanguageModel } from "ai";
 
 // Omni rather than Ultra: computer use needs a model that can see screenshots.
@@ -106,4 +106,48 @@ export function withFallback(primary: LanguageModelV4, fallback: LanguageModelV4
 // :free twin missed every one; Gemma 4 was rate-limited; Inkling is gated).
 const FALLBACK_MODEL_ID = "dots-studio/dots-3-note-preview:free";
 
-export const chatModel = withFallback(nvidia(MODEL_ID), openrouter?.(FALLBACK_MODEL_ID));
+type PromptMessage = LanguageModelV4Prompt[number];
+type UserPart = Extract<PromptMessage, { role: "user" }>["content"][number];
+type ToolPart = Extract<PromptMessage, { role: "tool" }>["content"][number];
+
+// NVIDIA's endpoint rejects images inside tool messages, so each screenshot
+// moves into a user message right after its tool result. Only the newest
+// one is kept: older screens are stale and would flood the context.
+export function hoistScreenshots(prompt: LanguageModelV4Prompt): LanguageModelV4Prompt {
+  const hasImage = (part: ToolPart) =>
+    part.type === "tool-result" && part.output.type === "content" && part.output.value.some((v) => v.type === "file");
+  const last = prompt.findLastIndex((m) => m.role === "tool" && m.content.some(hasImage));
+
+  return prompt.flatMap((message, i): PromptMessage[] => {
+    if (message.role !== "tool") return [message];
+    const images: UserPart[] = [];
+    const content = message.content.map((part) => {
+      if (part.type !== "tool-result" || part.output.type !== "content") return part;
+      const text = part.output.value.flatMap((v) => {
+        if (v.type === "file") {
+          if (i === last) images.push({ type: "file", data: v.data, mediaType: v.mediaType });
+          return [];
+        }
+        return v.type === "text" ? [v.text] : [];
+      });
+      return { ...part, output: { type: "text" as const, value: text.join("\n") } };
+    });
+    const hoisted: PromptMessage[] = [{ ...message, content }];
+    if (images.length) {
+      hoisted.push({ role: "user", content: [{ type: "text", text: "[The screenshot from your last tool call]" }, ...images] });
+    }
+    return hoisted;
+  });
+}
+
+// On the model, not in streamText's prepareStep: a prepareStep that returns
+// messages trips @trigger.dev/sdk 4.8's retainStepMessages, which with ai v7's
+// per-step response.messages drops every step after the second, so the model
+// never sees its latest tool results and repeats the same call forever.
+export const chatModel = wrapLanguageModel({
+  model: withFallback(nvidia(MODEL_ID), openrouter?.(FALLBACK_MODEL_ID)),
+  middleware: {
+    specificationVersion: "v4",
+    transformParams: async ({ params }) => ({ ...params, prompt: hoistScreenshots(params.prompt) }),
+  },
+});

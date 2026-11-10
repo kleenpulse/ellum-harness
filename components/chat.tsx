@@ -13,6 +13,7 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { leadingMention, useBotMention } from "@/components/bot-mention";
+import { CopyAction, EditAction, MessageActions, MessageEditor, RetryAction } from "@/components/message-actions";
 import { ChatAvatar } from "@/components/chat-avatar";
 import { ChatTool, isToolPart } from "@/components/chat-tool";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -39,6 +40,10 @@ import type { ChatUIMessage } from "@/trigger/sandbox-tools";
 type ChatBot = { id: string; name: string; avatar: string; job: string };
 type Part = ChatUIMessage["parts"][number];
 type Segment = { author?: ChatBot; parts: { part: Part; i: number }[] };
+
+/** A message's prose, for copying and editing. */
+const textOf = (message: ChatUIMessage) =>
+  message.parts.flatMap((p) => (p.type === "text" && p.text.trim() ? [p.text.trim()] : [])).join("\n\n");
 
 /** Chat against the Trigger.dev chat agent. History comes from the agent's transcript storage. */
 export function Chat({ chatId, bots }: { chatId: string; /** A group's members; picks who answers. */ bots?: ChatBot[] }) {
@@ -72,7 +77,7 @@ function ChatView({
   const turn = botId ? { metadata: { botId } } : undefined;
   const mention = useBotMention(bots, (bot) => setBotId(bot.id));
 
-  const { messages, sendMessage, status, stop, error, regenerate } = useChat<ChatUIMessage>({
+  const { messages, sendMessage, setMessages, status, stop, error, regenerate } = useChat<ChatUIMessage>({
     id: chatId,
     messages: initialMessages,
     transport,
@@ -89,6 +94,26 @@ function ChatView({
       );
     },
   });
+
+  const busy = status === "submitted" || status === "streaming";
+  const [editingId, setEditingId] = useState<string>();
+  const lastUser = messages.findLast((m) => m.role === "user");
+
+  // Answers a user message again, as the bot it was sent to. Local history drops
+  // what followed it; the agent does the same in onAction before its turn.
+  const answerAgain = (message: ChatUIMessage, text?: string) => {
+    if (text !== undefined) {
+      setMessages((prev) => {
+        const i = prev.findIndex((m) => m.id === message.id);
+        return [...prev.slice(0, i), { ...message, parts: [{ type: "text", text }] }];
+      });
+    }
+    const action = text === undefined
+      ? { type: "regenerate" as const, messageId: message.id }
+      : { type: "edit" as const, messageId: message.id, text };
+    const to = message.metadata?.botId;
+    void regenerate({ messageId: message.id, body: { action }, metadata: to ? { botId: to } : undefined });
+  };
 
   // Who wrote which parts. A reply comes from the bot its user message was
   // sent to, until a handoff: the parts after it are the target's. The target's
@@ -132,47 +157,78 @@ function ChatView({
     <div className="flex min-h-0 flex-1 flex-col">
       <Conversation className="flex-1">
         <ConversationContent>
-          {messages.map((message, m) =>
-            message.role === "user" ? (
-              <Message from="user" key={message.id}>
-                {/* Block, not flex, and the text's first paragraph inline: the mention
-                    shares its first line, and the bubble's width counts both. */}
-                <MessageContent className={cn(bots && "block")}>
-                  {bots && <Mention bot={bots.find((b) => b.id === message.metadata?.botId)} />}
-                  {message.parts.map((part, i) =>
-                    part.type === "text" ? (
-                      <MessageResponse key={`${message.id}-${i}`} className={cn(bots && "inline [&>p:first-child]:inline")}>
-                        {part.text}
-                      </MessageResponse>
-                    ) : (
-                      renderPart(message, m, part, i)
-                    ),
+          {messages.map((message, m) => {
+            const latest = m === messages.length - 1;
+            if (message.role === "user") {
+              if (editingId === message.id) {
+                return (
+                  <Message from="user" key={message.id}>
+                    <MessageEditor
+                      initial={textOf(message)}
+                      onCancel={() => setEditingId(undefined)}
+                      onSave={(text) => {
+                        setEditingId(undefined);
+                        answerAgain(message, text);
+                      }}
+                    />
+                  </Message>
+                );
+              }
+              return (
+                <Message from="user" key={message.id}>
+                  {/* Block, not flex, and the text's first paragraph inline: the mention
+                      shares its first line, and the bubble's width counts both. */}
+                  <MessageContent className={cn(bots && "block")}>
+                    {bots && <Mention bot={bots.find((b) => b.id === message.metadata?.botId)} />}
+                    {message.parts.map((part, i) =>
+                      part.type === "text" ? (
+                        <MessageResponse key={`${message.id}-${i}`} className={cn(bots && "inline [&>p:first-child]:inline")}>
+                          {part.text}
+                        </MessageResponse>
+                      ) : (
+                        renderPart(message, m, part, i)
+                      ),
+                    )}
+                  </MessageContent>
+                  <MessageActions align="end" pinned={latest && !busy}>
+                    <CopyAction text={textOf(message)} />
+                    <EditAction disabled={busy} onClick={() => setEditingId(message.id)} />
+                    {/* Unanswered, e.g. a failed turn after a reload, where the error card is gone. */}
+                    {latest && !busy && !error && <RetryAction onClick={() => answerAgain(message)} />}
+                  </MessageActions>
+                </Message>
+              );
+            }
+            const list = segments.get(message.id) ?? [];
+            // The user message this reply answers; Retry is offered on the latest reply only.
+            const asked = messages.slice(0, m).findLast((x) => x.role === "user");
+            return list.map(({ author, parts }, s) => (
+              <Message
+                from={message.role}
+                key={`${message.id}-${s}`}
+                className={cn(author && "flex-row items-start gap-3")}
+              >
+                {/* Groups: the bot that wrote these parts, beside them. */}
+                {author && <ChatAvatar seed={author.avatar} className="size-7" />}
+                <MessageContent className={cn(author && "min-w-0 flex-1 pt-1")}>
+                  {parts.map(({ part, i }) => renderPart(message, m, part, i))}
+                  {s === list.length - 1 && !(latest && busy) && (
+                    <MessageActions align="start" pinned={latest}>
+                      <CopyAction text={textOf(message)} />
+                      {latest && asked && <RetryAction onClick={() => answerAgain(asked)} />}
+                    </MessageActions>
                   )}
                 </MessageContent>
               </Message>
-            ) : (
-              (segments.get(message.id) ?? []).map(({ author, parts }, s) => (
-                <Message
-                  from={message.role}
-                  key={`${message.id}-${s}`}
-                  className={cn(author && "flex-row items-start gap-3")}
-                >
-                  {/* Groups: the bot that wrote these parts, beside them. */}
-                  {author && <ChatAvatar seed={author.avatar} className="size-7" />}
-                  <MessageContent className={cn(author && "min-w-0 flex-1 pt-1")}>
-                    {parts.map(({ part, i }) => renderPart(message, m, part, i))}
-                  </MessageContent>
-                </Message>
-              ))
-            ),
-          )}
+            ));
+          })}
           {error && (
             <Alert variant="destructive">
               <CircleAlertIcon />
               <AlertTitle>The bot stopped partway.</AlertTitle>
               <AlertDescription>Its model or sandbox didn&apos;t respond. Try again in a moment.</AlertDescription>
               <AlertAction>
-                <Button size="pill-sm" variant="surface" onClick={() => regenerate(turn)}>
+                <Button size="pill-sm" variant="surface" onClick={() => (lastUser ? answerAgain(lastUser) : regenerate(turn))}>
                   Retry
                 </Button>
               </AlertAction>
@@ -217,7 +273,9 @@ function ChatView({
             </PromptInputTools>
           )}
           <PromptInputSubmit
-            status={status}
+            // The error card above reports a failed turn; the composer stays ready
+            // instead of showing ai-elements' error "X", which reads as stuck.
+            status={status === "error" ? "ready" : status}
             // useChat's stop() doesn't reach the agent after a resume; stopGeneration does.
             onStop={() => {
               stop();

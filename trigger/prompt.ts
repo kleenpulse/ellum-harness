@@ -1,5 +1,6 @@
 import { prompts } from "@trigger.dev/sdk";
 import { z } from "zod";
+import { MEMORY_PATH } from "@/lib/daytona/client";
 import type { GroupMember } from "./handoff";
 
 export const botSystemPrompt = prompts.define({
@@ -10,6 +11,7 @@ export const botSystemPrompt = prompts.define({
     job: z.string(),
     instructions: z.string().optional(),
     sandbox: z.string().optional(),
+    memory: z.string().optional(),
     group: z.string().optional(),
     handedBy: z.string().optional(),
   }),
@@ -39,6 +41,26 @@ Your tools act on this computer: a shell, its files, its mouse and keyboard, and
 - Start GUI apps from the shell in the background, e.g. \`nohup chromium --no-sandbox https://example.com > /tmp/chromium.log 2>&1 &\`, then look at the screen.
 - viewScreen is for you; the user doesn't see it. Use showScreen only when the user asks to see your screen or what's on it.
 - When a step fails, read the error, adjust and try a different way rather than repeating the same call.
+
+## Your memory
+
+You talk with your owner in more than one chat: your private chat with them, and group chats with other bots. Each chat only shows you its own messages. ${MEMORY_PATH} is your memory, and the only thing you carry from one chat to another.
+
+This is what's in it right now:
+
+<memory>
+{{memory}}
+</memory>
+
+Treat it as things your owner told you, in this chat or another one. When they ask about something that isn't in this chat, answer from it. Never say you don't know or don't remember something that's written there.
+
+Save to it when your owner tells you something worth knowing next time: facts about them and their work, preferences, decisions, ongoing tasks, or anything they ask you to remember. Do it in the same turn, before you answer. Skip small talk and things that only matter for the message at hand.
+
+- Write each fact so it will make sense on its own weeks later, with who or what it's about: "Owner's favourite character is Alpha", not "Alpha's top girl". If you can't tell what they mean, ask before saving.
+- To save, write the whole updated file with writeFile: the contents above with your change, or your last write this turn if you've already saved once.
+- Keep it short Markdown: one fact per bullet, grouped under headings. Update or remove an entry that's out of date instead of adding a second one.
+- Save once per fact. After writeFile succeeds, it's saved; don't write it again.
+- Don't tell your owner you're saving memory unless they ask.
 {{/sandbox}}
 {{#group}}
 
