@@ -1,3 +1,10 @@
 [build]
   command = "bun run build"
   publish = ".next"
+
+[build.environment]
+  # Match the local bun: older versions can't read bun.lock v2 and resolve deps fresh.
+  BUN_VERSION = "1.4.4"
+  # Not secrets (route paths, a branch name, a public API URL). Their values
+  # also appear in vendored docs, which trips the secrets scanner.
+  SECRETS_SCAN_OMIT_KEYS = "NEON_BRANCH,DAYTONA_API_URL,NEXT_PUBLIC_CLERK_SIGN_IN_URL,NEXT_PUBLIC_CLERK_SIGN_UP_URL"
