@@ -7,6 +7,7 @@ import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { BOT_FEATURES, hasFeatures, UPGRADE_MESSAGE } from "@/lib/billing";
 import { db } from "@/lib/db";
 import { bots, chatMembers, chats } from "@/lib/db/schema";
 import { groupChatSchema, type GroupChatInput } from "@/lib/db/validation";
@@ -29,15 +30,27 @@ async function assertOwnChat(chatId: string) {
 const start = chat.createStartSessionAction<typeof chatAgent>("chat");
 const load = chat.createLoadTranscriptAction(defaultStorage);
 
+// The session token is the only way to reach the agent, and so the bot's
+// sandbox: both ways to get one need the plan. Usage limits are left to the
+// agent, which checks plan and allowance every turn (trigger/usage.ts) and
+// says why it refused; an error thrown here reaches the browser redacted in
+// production.
+async function assertPlan() {
+  const { has } = await auth();
+  if (!hasFeatures(has, BOT_FEATURES)) throw new Error(UPGRADE_MESSAGE);
+}
+
 /** Creates the chat's session and first run, returns a session-scoped token. Idempotent per chatId. */
 export async function startChatSession(params: ChatStartSessionParams<typeof chatAgent>) {
   await assertOwnChat(params.chatId);
+  await assertPlan();
   return start(params);
 }
 
 /** Refreshes the session token; the transport calls this on 401/403. */
 export async function mintChatAccessToken(chatId: string) {
   await assertOwnChat(chatId);
+  await assertPlan();
   return triggerAuth.createPublicToken({
     scopes: { read: { sessions: chatId }, write: { sessions: chatId } },
     expirationTime: "1h",

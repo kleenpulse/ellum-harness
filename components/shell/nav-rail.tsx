@@ -2,6 +2,7 @@
 
 import { UserButton, useUser } from "@clerk/nextjs";
 import {
+	Gauge,
 	PanelLeftClose,
 	PanelLeftOpen,
 	Plus,
@@ -23,6 +24,7 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import { usePlanGate } from "@/components/billing/use-plan-gate";
 import { BotDialogPanel } from "@/components/bot-dialog";
 import { GroupChatAvatar } from "@/components/group-chat-avatar";
 import { type GroupChatBot, GroupChatDialogPanel } from "@/components/group-chat-dialog";
@@ -38,6 +40,7 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { requestChangelogOpen } from "@/components/whats-new/store";
 import { anchoredToast, toastPoint } from "@/components/ui/toast";
+import { BOT_FEATURES, USAGE_PATH } from "@/lib/billing";
 import { Tip, TooltipGroup } from "@/components/ui/tooltip";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { SPRING_DETENT } from "@/lib/motion";
@@ -118,6 +121,7 @@ function Rail({
 	const [groupOpen, setGroupOpen] = useState(false);
 	const [groupOrigin, setGroupOrigin] = useState<DOMRect | null>(null);
 	const router = useRouter();
+	const plan = usePlanGate();
 	const [searchOpen, setSearchOpen] = useState(false);
 
 	const searchGroups = useMemo<CommandGroupDef[]>(
@@ -232,6 +236,7 @@ function Rail({
 							<DropdownMenuItem
 								className="gap-2.5 rounded-xl px-2.5 py-2"
 								onClick={() => {
+									if (!plan.allows(BOT_FEATURES)) return;
 									setBotOrigin(createRef.current?.getBoundingClientRect() ?? null);
 									setBotOpen(true);
 								}}
@@ -374,6 +379,11 @@ function Rail({
 									}}
 								>
 									<UserButton.MenuItems>
+										<UserButton.Link
+											label="Usage"
+											labelIcon={<Gauge className="size-4" />}
+											href={USAGE_PATH}
+										/>
 										<UserButton.Action
 											label="What's new"
 											labelIcon={<Sparkles className="size-4" />}

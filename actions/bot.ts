@@ -5,15 +5,21 @@ import { refresh } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { BOT_FEATURES, hasFeatures, UPGRADE_MESSAGE } from "@/lib/billing";
 import { createBotSandbox, deleteSandbox } from "@/lib/daytona";
 import { db } from "@/lib/db";
 import { bots, chatMembers, chats } from "@/lib/db/schema";
 import { botSchema, type BotInput } from "@/lib/db/validation";
+import { getAllowance, LIMIT_MESSAGES, MAX_BOTS, recordUsage, remaining } from "@/lib/usage";
 
 type BotFailure = {
   ok: false;
   error: string;
   fieldErrors?: Partial<Record<keyof BotInput, string[]>>;
+  /** The plan lacks the feature: the client offers the plans. */
+  upgrade?: true;
+  /** A usage limit is reached: the client offers the usage page. */
+  limit?: true;
 };
 
 export type CreateBotResult = { ok: true; id: string; name: string; chatId: string } | BotFailure;
@@ -21,8 +27,10 @@ export type UpdateBotResult = { ok: true; id: string; name: string } | BotFailur
 export type DeleteBotResult = { ok: true } | { ok: false; error: string };
 
 export async function createBot(input: BotInput): Promise<CreateBotResult> {
-  const { userId } = await auth();
+  const { userId, has } = await auth();
   if (!userId) return { ok: false, error: "Sign in to create a bot." };
+  // Before validation and before the sandbox: nothing billable starts without the plan.
+  if (!hasFeatures(has, BOT_FEATURES)) return { ok: false, error: UPGRADE_MESSAGE, upgrade: true };
 
   const parsed = botSchema.safeParse(input);
   if (!parsed.success) {
@@ -31,6 +39,14 @@ export async function createBot(input: BotInput): Promise<CreateBotResult> {
       error: "Check the highlighted fields.",
       fieldErrors: z.flattenError(parsed.error).fieldErrors,
     };
+  }
+
+  // After validation, so a half-filled form still shows its own errors first.
+  const allowance = await getAllowance(userId);
+  if (!allowance.pro) return { ok: false, error: UPGRADE_MESSAGE, upgrade: true };
+  if (allowance.bots >= MAX_BOTS) return { ok: false, error: LIMIT_MESSAGES.bots, limit: true };
+  if (remaining(allowance.used, "sandboxes_created") < 1) {
+    return { ok: false, error: LIMIT_MESSAGES.sandboxes_created, limit: true };
   }
 
   const { instructions, ...rest } = parsed.data;
@@ -42,6 +58,8 @@ export async function createBot(input: BotInput): Promise<CreateBotResult> {
   let sandboxId: string;
   try {
     sandboxId = await createBotSandbox(botId, userId);
+    // Charged once it exists, even if saving the bot fails below: the sandbox ran.
+    await recordUsage(userId, "sandboxes_created", 1, { botId });
   } catch (error) {
     console.error("Sandbox creation failed", error);
     return { ok: false, error: "Couldn't set up the bot's sandbox. Try again." };

@@ -13,7 +13,9 @@ import {
   type RefCallback,
 } from "react";
 import { usePanelRef } from "react-resizable-panels";
-import { openDesktop } from "@/actions/desktop";
+import { meterDesktop, openDesktop } from "@/actions/desktop";
+import { DESKTOP_BEAT_MS } from "@/lib/usage-limits";
+import { usePlanGate } from "@/components/billing/use-plan-gate";
 import { Button } from "@/components/ui/button";
 import GrowDialog from "@/components/ui/grow-dialog";
 import { ResizableHandle, ResizablePanel } from "@/components/ui/resizable";
@@ -77,6 +79,7 @@ export function DesktopPanelProvider({ chatId, children }: { chatId: string; chi
   // A ref, not the transition flag: onResize can fire again before `loading` re-renders.
   const requested = useRef(false);
   const slots = useRef<Record<Slot, HTMLDivElement | null>>({ panel: null, dialog: null });
+  const { prompt: promptUpgrade, limit: promptLimit } = usePlanGate();
 
   // The panel needs the width: the rail stays collapsed while it's open.
   useEffect(() => {
@@ -101,6 +104,8 @@ export function DesktopPanelProvider({ chatId, children }: { chatId: string; chi
       const result = await openDesktop(chatId);
       if (!result.ok) {
         setError(result.error);
+        if (result.upgrade) promptUpgrade(result.error);
+        if (result.limit) promptLimit(result.error);
         return;
       }
       const frame = document.createElement("iframe");
@@ -112,7 +117,26 @@ export function DesktopPanelProvider({ chatId, children }: { chatId: string; chi
       frameRef.current = frame;
       place();
     });
-  }, [chatId, place]);
+  }, [chatId, place, promptUpgrade, promptLimit]);
+
+  // A connected desktop keeps its sandbox running, so it's charged every beat,
+  // collapsed or not. Out of plan or time: the frame goes, Retry stays.
+  useEffect(() => {
+    if (!ready) return;
+    const beat = setInterval(async () => {
+      const result = await meterDesktop(chatId);
+      if (result.ok) return;
+      clearInterval(beat);
+      frameRef.current?.remove();
+      frameRef.current = null;
+      requested.current = false;
+      setReady(false);
+      setError(result.error);
+      if (result.upgrade) promptUpgrade(result.error);
+      if (result.limit) promptLimit(result.error);
+    }, DESKTOP_BEAT_MS);
+    return () => clearInterval(beat);
+  }, [ready, chatId, promptUpgrade, promptLimit]);
 
   // Loads on first open, by button or by drag, and never again (a failure waits for Retry).
   const setOpen = useCallback(

@@ -3,6 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import type { TriggerChatTransport } from "@trigger.dev/sdk/chat";
 import { useLoadTranscript, useTriggerChatTransport } from "@trigger.dev/sdk/chat/react";
+import Link from "next/link";
 import { useState } from "react";
 import { loadChatTranscript, mintChatAccessToken, startChatSession } from "@/actions/chat";
 import {
@@ -12,6 +13,7 @@ import {
 } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
+import { usePlanGate } from "@/components/billing/use-plan-gate";
 import { leadingMention, useBotMention } from "@/components/bot-mention";
 import { CopyAction, EditAction, MessageActions, MessageEditor, RetryAction } from "@/components/message-actions";
 import { ChatAvatar } from "@/components/chat-avatar";
@@ -34,6 +36,9 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import type { chatAgent } from "@/trigger/chat";
 import { endsInHandoff } from "@/trigger/handoff";
+import { requestPricingOpen } from "@/components/billing/pricing-dialog";
+import { BOT_FEATURES, UPGRADE_MESSAGE, USAGE_PATH } from "@/lib/billing";
+import { LIMIT_MESSAGES } from "@/lib/usage-limits";
 import { cn } from "@/lib/utils";
 import type { ChatUIMessage } from "@/trigger/sandbox-tools";
 
@@ -76,6 +81,7 @@ function ChatView({
   // Becomes the agent's clientData for this turn; direct chats send none.
   const turn = botId ? { metadata: { botId } } : undefined;
   const mention = useBotMention(bots, (bot) => setBotId(bot.id));
+  const plan = usePlanGate();
 
   const { messages, sendMessage, setMessages, status, stop, error, regenerate } = useChat<ChatUIMessage>({
     id: chatId,
@@ -102,6 +108,7 @@ function ChatView({
   // Answers a user message again, as the bot it was sent to. Local history drops
   // what followed it; the agent does the same in onAction before its turn.
   const answerAgain = (message: ChatUIMessage, text?: string) => {
+    if (!plan.allows(BOT_FEATURES)) return;
     if (text !== undefined) {
       setMessages((prev) => {
         const i = prev.findIndex((m) => m.id === message.id);
@@ -167,6 +174,8 @@ function ChatView({
                       initial={textOf(message)}
                       onCancel={() => setEditingId(undefined)}
                       onSave={(text) => {
+                        // Before closing, so a refused edit keeps its text.
+                        if (!plan.allows(BOT_FEATURES)) return;
                         setEditingId(undefined);
                         answerAgain(message, text);
                       }}
@@ -222,7 +231,24 @@ function ChatView({
               </Message>
             ));
           })}
-          {error && (
+          {error && refusedFor(error) ? (
+            <Alert variant="destructive">
+              <CircleAlertIcon />
+              <AlertTitle>{refusedFor(error) === "upgrade" ? "This needs Pro." : "Limit reached."}</AlertTitle>
+              <AlertDescription>{error.message}</AlertDescription>
+              <AlertAction>
+                {refusedFor(error) === "upgrade" ? (
+                  <Button size="pill-sm" variant="surface" onClick={requestPricingOpen}>
+                    See plans
+                  </Button>
+                ) : (
+                  <Button size="pill-sm" variant="surface" render={<Link href={USAGE_PATH} />} nativeButton={false}>
+                    See usage
+                  </Button>
+                )}
+              </AlertAction>
+            </Alert>
+          ) : error && (
             <Alert variant="destructive">
               <CircleAlertIcon />
               <AlertTitle>The bot stopped partway.</AlertTitle>
@@ -240,6 +266,13 @@ function ChatView({
 
       <PromptInput
         className="mt-4"
+        // Capture phase: PromptInput clears the draft before its onSubmit runs,
+        // so a send the plan refuses is stopped before it gets there.
+        onSubmitCapture={(event) => {
+          if (plan.allows(BOT_FEATURES)) return;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
         onSubmit={({ text }) => {
           mention.close();
           // "@Name …" typed out without the menu still goes to that bot.
@@ -323,4 +356,12 @@ function BotOption({ bot, withJob }: { bot?: ChatBot; withJob?: boolean }) {
       </span>
     </span>
   );
+}
+
+const LIMITS: readonly string[] = Object.values(LIMIT_MESSAGES);
+
+/** A turn the agent refused for the plan or a usage limit; its message is one of ours, verbatim. */
+function refusedFor(error: Error): "upgrade" | "limit" | undefined {
+  if (error.message === UPGRADE_MESSAGE) return "upgrade";
+  if (LIMITS.includes(error.message)) return "limit";
 }

@@ -10,6 +10,8 @@ const nvidia = createOpenAICompatible({
   name: "nvidia",
   apiKey: process.env.NVIDIA_API_KEY,
   baseURL: "https://integrate.api.nvidia.com/v1",
+  // Streams carry no token counts without it, and the usage ledger needs them.
+  includeUsage: true,
 });
 
 const openrouter = process.env.OPENROUTER_API_KEY
@@ -17,6 +19,7 @@ const openrouter = process.env.OPENROUTER_API_KEY
       name: "openrouter",
       apiKey: process.env.OPENROUTER_API_KEY,
       baseURL: "https://openrouter.ai/api/v1",
+      includeUsage: true,
     })
   : undefined;
 

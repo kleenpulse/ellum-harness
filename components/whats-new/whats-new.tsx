@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { releaseFor, type ChangeCategory, type ChangelogEntry, type ChangelogRelease } from "@/lib/changelog/parse";
 import { APP_VERSION, readLastSeen, whatsNewAction, writeLastSeen } from "@/lib/changelog/seen";
+import { HashDialogSync } from "@/lib/hash-dialog";
 import { cn } from "@/lib/utils";
-import { closeChangelog, notifyChangelogHash, requestChangelogOpen, useChangelogOpen } from "./store";
+import { closeChangelog, requestChangelogOpen, useChangelogOpen } from "./store";
 
 // Mounted once in the (dashboard) layout. Owns both dialogs: the one-shot
 // What's New card (opens by itself after an upgrade) and the full changelog
@@ -33,15 +33,6 @@ const ReleasesContext = React.createContext<ChangelogRelease[]>([]);
 /** Every released version, newest first. */
 export function useReleases(): ChangelogRelease[] {
 	return React.useContext(ReleasesContext);
-}
-
-/** Router navigations fire neither hashchange nor popstate. */
-function HashNavSync() {
-	const pathname = usePathname();
-	React.useEffect(() => {
-		notifyChangelogHash();
-	}, [pathname]);
-	return null;
 }
 
 function CategoryTag({ category }: { category: ChangeCategory }) {
@@ -151,7 +142,7 @@ export function WhatsNew({ releases, children }: { releases: ChangelogRelease[];
 				</DialogContent>
 			</Dialog>
 
-			<HashNavSync />
+			<HashDialogSync />
 		</ReleasesContext>
 	);
 }

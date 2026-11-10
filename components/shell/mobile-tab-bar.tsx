@@ -1,6 +1,8 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
+import { Gauge } from "lucide-react";
+import { USAGE_PATH } from "@/lib/billing";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -42,7 +44,12 @@ function TabBar({ pathname }: { pathname: string }) {
       })}
       <ThemeToggle className="size-10" />
       <div className="grid size-10 place-items-center">
-        <UserButton />
+        {/* The rail's account menu on phones, where the rail is hidden. */}
+        <UserButton>
+          <UserButton.MenuItems>
+            <UserButton.Link label="Usage" labelIcon={<Gauge className="size-4" />} href={USAGE_PATH} />
+          </UserButton.MenuItems>
+        </UserButton>
       </div>
     </nav>
   );

@@ -1,6 +1,6 @@
 import { chat } from "@trigger.dev/sdk/ai";
 import type { Sandbox } from "@daytona/sdk";
-import { hasToolCall, isStepCount } from "ai";
+import { createUIMessageStream, hasToolCall, isStepCount } from "ai";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getRunningSandbox, readMemory } from "@/lib/daytona/client";
@@ -11,6 +11,7 @@ import { attributeGroupHistory, recipients } from "./group-history";
 import { createHandoffTool, endsInHandoff, type GroupMember } from "./handoff";
 import { botSystemPrompt, roster } from "./prompt";
 import { createSandboxTools, type ChatUIMessage } from "./sandbox-tools";
+import { chargeStep, enterSandbox, openTurnBudget, overBudget, UsageLimitError, type TurnBudget } from "./usage";
 
 /**
  * The bot answering this turn, owner-scoped through the chat row. A direct
@@ -20,6 +21,8 @@ import { createSandboxTools, type ChatUIMessage } from "./sandbox-tools";
 async function botForChat(chatId: string, botId?: string) {
   const [row] = await db
     .select({
+      id: bots.id,
+      userId: chats.userId,
       name: bots.name,
       job: bots.job,
       instructions: bots.instructions,
@@ -56,6 +59,29 @@ function groupMembers(chatId: string): Promise<GroupMember[]> {
     .orderBy(chatMembers.joinedAt);
 }
 
+// This turn's budget per chat, opened in onTurnStart. A chat's turns run one
+// at a time, so one entry per chat is enough.
+const budgets = new Map<string, Promise<TurnBudget>>();
+
+function turnBudget(chatId: string, botId?: string) {
+  let budget = budgets.get(chatId);
+  if (!budget) {
+    budget = botForChat(chatId, botId).then((bot) => openTurnBudget(chatId, bot.userId, bot.id));
+    budgets.set(chatId, budget);
+  }
+  return budget;
+}
+
+/** The turn's refusal, if the plan or allowance refuses it; other failures still throw. */
+const refusal = (budget: Promise<TurnBudget>) =>
+  budget.then(
+    () => undefined,
+    (error) => {
+      if (error instanceof UsageLimitError) return error;
+      throw error;
+    },
+  );
+
 // No `storage`: the platform's default transcript storage keeps each conversation, keyed by chatId.
 export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   id: "chat",
@@ -90,7 +116,9 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   tools: async ({ chatId, clientData }) => {
     const botId = clientData?.botId;
     let pending: Promise<Sandbox> | undefined;
-    const sandboxTools = createSandboxTools(() => {
+    const sandboxTools = createSandboxTools(async () => {
+      // Every tool call: the sandbox time can run out partway through a turn.
+      enterSandbox(await turnBudget(chatId, botId));
       pending ??= botForChat(chatId, clientData?.botId)
         .then(({ sandboxId }) => {
           if (!sandboxId) throw new Error("This bot has no sandbox.");
@@ -111,6 +139,9 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
   // edited mid-chat should answer as its new self on the next message.
   onTurnStart: async ({ chatId, clientData, uiMessages }) => {
     const botId = clientData?.botId;
+    // Plan and allowance first: a refused turn shouldn't wake the sandbox to read memory.
+    budgets.delete(chatId);
+    if (await refusal(turnBudget(chatId, botId))) return; // run() tells the user
     const [bot, members] = await Promise.all([botForChat(chatId, botId), botId ? groupMembers(chatId) : undefined]);
     // In the prompt, not left to a readFile call: the model skipped that read
     // in group chats and answered as if it had never been told.
@@ -138,7 +169,15 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
     const names = new Map((await groupMembers(chatId)).map((m) => [m.id, m.name]));
     return attributeGroupHistory(messages, recipients(chat.history.all()), botId, names);
   },
-  run: async ({ messages, tools, signal, streamText, ctx }) => {
+  run: async ({ messages, tools, signal, streamText, ctx, chatId, clientData }) => {
+    const refused = await refusal(turnBudget(chatId, clientData?.botId));
+    if (refused) {
+      // An error part, not a throw: the run stays up, and the chat shows the
+      // message (components/chat.tsx matches it to offer plans or usage).
+      await chat.pipe(createUIMessageStream({ execute: ({ writer }) => writer.write({ type: "error", errorText: refused.message }) }));
+      return;
+    }
+    const budget = await turnBudget(chatId, clientData?.botId);
     // Runs stay pinned to the worker build they started on, and every save in
     // dev is a new build. Exiting after each turn makes the next message start
     // a run on the current code instead of resuming a stale one.
@@ -148,7 +187,10 @@ export const chatAgent = chat.withUIMessage<ChatUIMessage>().agent({
       messages,
       tools,
       // A handoff ends the turn; the target bot answers in the next one.
-      stopWhen: [isStepCount(40), hasToolCall("handoff")],
+      // Past the allowance, the turn ends after the step that crossed it.
+      stopWhen: [isStepCount(40), hasToolCall("handoff"), overBudget(budget)],
+      // Per step, so a turn that's stopped or crashes is still charged for what ran.
+      onStepEnd: ({ usage }) => chargeStep(budget, usage),
       // No prepareStep returning messages: see chatModel in ./model.
       abortSignal: signal,
     });

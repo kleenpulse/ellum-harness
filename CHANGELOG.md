@@ -13,6 +13,18 @@ as you work. It ships inside the app.
 
 ### Added
 
+- Links to pages that don't exist now land on a proper "not found"
+  screen with a way back home, instead of a blank black page.
+- Ellum now has a Pro plan. Creating bots, chatting with them and
+  opening their desktops need Pro. On the free plan you'll see a
+  message with a "See plans" button that opens the plans, where you
+  can subscribe. You can still read your old chats, and edit or delete
+  your bots.
+- Pro includes a monthly allowance: 10 million AI tokens, 30 hours of
+  bot computer time and 20 new bots, with up to 10 bots at once. A new
+  Usage page, in your account menu, shows how much you've used and
+  how long until it resets. When something runs out, the bot tells you
+  and points you to the Usage page.
 - Click a group chat's name at the top of the chat to edit it. Rename
   the group, add or remove bots, or delete the group.
 - Bots now remember what you tell them. Something you said in a private

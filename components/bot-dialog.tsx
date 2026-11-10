@@ -6,6 +6,7 @@ import { nanoid } from "nanoid";
 import { useMemo, useState, useTransition, type ComponentProps, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { createBot, updateBot } from "@/actions/bot";
+import { usePlanGate } from "@/components/billing/use-plan-gate";
 import { gazeSvg } from "@/components/chat-avatar";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { CountedTextarea } from "@/components/ui/counted-textarea";
 import { toast } from "@/components/ui/toast";
+import { BOT_FEATURES } from "@/lib/billing";
 import { botSchema, INSTRUCTIONS_MAX, type BotInput } from "@/lib/db/validation";
 
 const TEMPLATES = [
@@ -72,12 +74,15 @@ type BotDialogProps = Omit<ComponentProps<typeof Button>, "onClick" | "children"
 export function BotDialog({ children, bot, ...trigger }: BotDialogProps) {
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState<DOMRect | null>(null);
+  const plan = usePlanGate();
 
   return (
     <>
       <Button
         {...trigger}
         onClick={(e) => {
+          // New bots only: editing or deleting one stays open after a plan lapses.
+          if (!bot && !plan.allows(BOT_FEATURES)) return;
           setOrigin(e.currentTarget.getBoundingClientRect());
           setOpen(true);
         }}
@@ -106,6 +111,7 @@ export function BotDialogPanel({
   bot?: EditableBot;
 }) {
   const [pending, startTransition] = useTransition();
+  const plan = usePlanGate();
 
   const form = useForm<BotInput>({
     resolver: zodResolver(botSchema),
@@ -124,6 +130,14 @@ export function BotDialogPanel({
     startTransition(async () => {
       const result = bot ? await updateBot(bot.id, values) : await createBot(values);
       if (!result.ok) {
+        if (result.upgrade) {
+          plan.prompt(result.error);
+          return;
+        }
+        if (result.limit) {
+          plan.limit(result.error);
+          return;
+        }
         for (const [key, messages] of Object.entries(result.fieldErrors ?? {})) {
           if (messages?.[0]) form.setError(key as keyof BotInput, { message: messages[0] });
         }

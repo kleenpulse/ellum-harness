@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
+import { PricingDialog } from "@/components/billing/pricing-dialog";
 import {
   MobileTabBar,
   MobileTabBarFallback,
@@ -40,6 +41,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           <MobileTabBar />
         </Suspense>
       </div>
+      <PricingDialog />
     </WhatsNew>
   );
 }
